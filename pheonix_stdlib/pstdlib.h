@@ -34,6 +34,9 @@ char* str = (char*)PNULL;
 
 #if defined(__linux__)
 #include <sys/mman.h>
+#elif defined(_WIN32)
+#include <memoryapi.h>
+#include <winnt.h>
 #endif
 
 #define __MEMTYPE_EXEC__ 1 // Memory Type: Executable
@@ -164,9 +167,6 @@ inline llong_t __plib_syscall(int id, ...) {
                 [a5] "r"(a[4])
                 : "eax","ebx","ecx","edx","esi","edi","memory"
             );
-        #elif defined(_WIN32)
-            // Windows x86 syscalls are tricky; need int 0x2e or ntdll stubs
-            ret = 0;
         #endif
 
     #elif __PARCH__ == arm64
@@ -243,5 +243,23 @@ inline void* memalloc(usize_t size, uint_t type) {
         if (type & __MEMTYPE_READ__) prot |= PROT_READ;
         if (type & __MEMTYPE_WRITE__) prot |= PROT_WRITE; 
         ptr = mmap(PNULL, size, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+        if (ptr == MAP_FAILED) {
+            ptr = PNULL;
+        }
+    #elif defined(_WIN32)
+        if (type & __MEMTYPE_EXEC__ && type & __MEMTYPE_READ__ && type & __MEMTYPE_WRITE__) prot = PAGE_EXECUTE_READWRITE;
+        else if (type & __MEMTYPE_EXEC__ && type & __MEMTYPE_READ__) prot = PAGE_EXECUTE_READ
+        else if (type & __MEMTYPE_EXEC__) prot = PAGE_EXECUTE;
+        else if (type & __MEMTYPE_NONE__) prot = PAGE_NOACCESS;
+        else if (type & __MEMTYPE_WRITE__) prot = PAGE_READWRITE; 
+        else if (type & __MEMTYPE_READ__) prot = PAGE_READONLY;
+        else prot = PAGE_NOACCESS;
+
+        ptr = VirtualAlloc(PNULL, MEM_COMMIT | MEM_RESERVE, prot);
+    #else
+        ptr = PNULL;
     #endif
+
+    return ptr;
 }
