@@ -6,6 +6,11 @@ Pheonix Standard Library
 
 // Macros
 
+#if defined(NULL)
+#else
+    #define NULL ((void*)0)
+#endif
+
 /*
 Pheonix Style Null - 
 ```c
@@ -17,7 +22,7 @@ May need casting like -
 char* str = (char*)PNULL;
 ```
 */
-#define PNULL (void*)0 
+#define PNULL ((void*)0)
 
 
 #if defined(__x86_64__) || defined(_M_X64)
@@ -44,28 +49,48 @@ char* str = (char*)PNULL;
 #define __MEMTYPE_WRITE__ 3 // Memory Type: Write
 #define __MEMTYPE_NONE__ 4 // Memory Type: None (Will be not accessed)
 
+// Bool
+#if defined(bool)
+    #undef bool
+#endif
+#define bool _Bool; // Bool (0 = False, 1 = True)
+#define true ((bool)1)
+#define false ((bool)0)
+
 // Typedefs
 typedef char byte_t; // Byte
 typedef long long_t; // Long
 typedef long long llong_t; // Long Long
 
 typedef unsigned char ubyte_t; // Unsigned Byte
-typedef ubyte_t uchar_t; // Unsigned Character
+typedef unsigned char uchar_t; // Unsigned Character
 typedef unsigned int uint_t; // Unsigned Integer
 typedef unsigned short ushort_t; // Unsigned Short
 typedef unsigned long ulong_t; // Unsigned Long
 typedef unsigned long long ullong_t; // Unsigned Long Long
 
-typedef llong_t len_t; // Signed Length
-typedef long_t size_t; // Signed Size
-typedef ullong_t ulen_t; // Unsigned Length
-typedef ulong_t usize_t; // Unsigned Size
-typedef ullong_t upos_t; // Unsigned Position
+typedef unsigned long uptr_t; // Unsigned Pointer
+typedef long ptr_t; // Signed Pointer
 
-typedef ubyte_t* uoff_t; // Unsigned Byte Pointer
-typedef byte_t* off_t; // Byte Pointer
+typedef long long len_t; // Signed Length
+typedef long size_t; // Signed Size
+typedef unsigned long long ulen_t; // Unsigned Length
+typedef unsigned long usize_t; // Unsigned Size
+typedef unsigned long long upos_t; // Unsigned Position
 
-typedef byte_t flag_t; // 1 = True / 0 = False
+typedef unsigned char* uoff_t; // Unsigned Byte Pointer
+typedef char* off_t; // Byte Pointer
+
+typedef unsigned char flag_t; // 1 = True / 0 = False (Just an example can be used for any type of flag)
+
+typedef char s8; // Signed 8-bit
+typedef short s16; // Signed 16-bit
+typedef int s32; // Signed 32-bit
+typedef long long s64; // Signed 64-bit
+typedef char u8; // Unsigned 8-bit
+typedef short u16; // Unsigned 16-bit
+typedef int u32; // Unsigned 32-bit
+typedef long long u64; // Unsigned 64-bit
 
 // Structures
 
@@ -84,6 +109,17 @@ typedef struct PStream {
     flag_t useBuf; // Use Internal Buffer for speed
     int md_err; // Meta Data: Stores Last Error
 } PStream;
+
+/*
+PHM_Hdr: Pheonix Heap Memory Header
+Reserved for Memory Allocation uses
+*/
+struct PHM_Hdr {
+    usize_t size;
+    u32 flags; // 32-bit Flags
+    struct PHM_Hdr* next;
+    usize_t next_count;
+};
 
 // Functions
 
@@ -230,10 +266,131 @@ inline llong_t __plib_syscall(int id, ...) {
     return ret;
 }
 
+/* Copy Buffer -
+Copy Memory from one place to another with specified size
+*/
+inline bool copybuf(void* source, void* dest, usize_t size) {
+    if (size == 0) return true;
+    else if (size < 0 || src == PNULL || dest == PNULL) return false;
+
+    byte_t* dst = (byte_t*)dest;
+    byte_t* src = (byte_t*)source;
+
+    if (size < 32) {
+        for (usize_t i = 0; i < n; i++) dst[i] = src[i];
+        return true;
+    }
+
+    uptr_t p = ((uptr_t)dst) & (sizeof(u64) - 1);
+    usize_t i = 0;
+    if (p) {
+        uptr_t to_align = (sizeof(u64) - p) & (sizeof(u64) - 1);
+        if (to_align > n) to_align = size;
+        for (; i < to_align; i++) dst[i] = src[i];
+    }
+
+    usize_t remain = size - 1;
+    if (remain >= sizeof(u64)) {
+        u64* wd = (u64*)(dst + i);
+        u64* ws = (u64*)(src + i); 
+        usize words = remain / sizeof(u64);
+        while (words >= 4) {
+            wd[0] = ws[0];
+            wd[1] = ws[1];
+            wd[2] = ws[2];
+            wd[3] = ws[3];
+            ws += 4;
+            wd += 4;
+            words -= 4;
+        }
+        while (words--) {
+            *wd++ = *ws++;
+        }
+        i += ((size - i) / sizeof(u64)) * sizeof(u64);
+    }
+
+    for(; i < n; i++) dst[i] = src[i];
+    return true;
+
+}
+
+/* Fill Buffer -
+Fills Memory of specified size with the specified value
+*/
+inline bool fillbuf(void* buf, byte_t value, usize_t size) {
+    if (size == 0) return true;
+    else if (size < 0 || buf == PNULL) return false;
+
+    byte_t* dest = (byte_t*)buf;
+
+    if (size < 32) {
+        for (usize_t i = 0; i < n; i++) dest[i] = value;
+        return true;
+    }
+
+    uptr_t p = ((uptr_t)dest) & (sizeof(u64) - 1);
+    usize_t i = 0;
+    if (p) {
+        uptr_t to_align = (sizeof(u64) - p) & (sizeof(u64) - 1);
+        if (to_align > n) to_align = size;
+        for (; i < to_align; i++) dest[i] = value;
+    }
+
+    usize_t remain = size - 1;
+    if (remain >= sizeof(u64)) {
+        u64 pat = (u64)value * (u64)0x0101010101010101ULL;
+        u64 *wd = (u64*)(dest + i);
+        usize words = remain / sizeof(u64);
+        while (words >= 4) {
+            wd[0] = pat;
+            wd[1] = pat;
+            wd[2] = pat;
+            wd[3] = pat;
+            wd += 4;
+            words -= 4;
+        }
+        while (words--) {
+            *wd++ = pat;
+        }
+        i += ((size - i) / sizeof(u64)) * sizeof(u64);
+    }
+
+    for(; i < n; i++) dest[i] = value;
+    return true;
+}
+
+/* Move Buffer -
+Move Memory of specified size from one place to another
+*/
+inline bool movebuf(void* source, void* dest, usize_t size) {
+    if (!copybuf(source, dest, size)) return false;
+    return fillbuf(source, 0, size);
+}
+
+
+/* Compare Buffer -
+Compare two blocks of Memory of the specified size
+
+Returns:
+1. false -> Not Same
+2. true -> Same
+*/
+inline bool cmpbuf(void* a, void* b, usize_t size) {
+    // Not yet implemented
+}
+
+/* Find Byte -
+Finds the specified byte in a block of Memory of the specified size, returns the location.
+*/
+inline uoff_t findbyte(void* search_area, byte_t byte, usize_t size) {
+    // Not Yet implemented
+}
+
 /*
+Extended Memory Alloc :
 Allocate Memory on the Heap, Can provide type of memory, such as Exec
 */
-inline void* memalloc(usize_t size, uint_t type) {
+inline void* exalloc(usize_t size, uint_t type, void* link) {
     void* ptr = PNULL;
     uint_t prot = 0;
 
@@ -242,7 +399,7 @@ inline void* memalloc(usize_t size, uint_t type) {
         if (type & __MEMTYPE_NONE__) prot |= PROT_NONE;
         if (type & __MEMTYPE_READ__) prot |= PROT_READ;
         if (type & __MEMTYPE_WRITE__) prot |= PROT_WRITE; 
-        ptr = mmap(PNULL, size, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        ptr = mmap(PNULL, size + sizeof(PHM_Hdr), prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
         if (ptr == MAP_FAILED) {
             ptr = PNULL;
@@ -256,10 +413,79 @@ inline void* memalloc(usize_t size, uint_t type) {
         else if (type & __MEMTYPE_READ__) prot = PAGE_READONLY;
         else prot = PAGE_NOACCESS;
 
-        ptr = VirtualAlloc(PNULL, MEM_COMMIT | MEM_RESERVE, prot);
+        ptr = VirtualAlloc(PNULL, size + sizeof(PHM_Hdr), MEM_COMMIT | MEM_RESERVE, prot);
     #else
         ptr = PNULL;
     #endif
 
+    struct PHM_Hdr* hdr = (struct PHM_Hdr*)ptr;
+    hdr->size = size;
+    hdr->flags = 0; // Normal Allocated
+    hdr->next = link ? link - sizeof(PHM_Hdr) : PNULL;
+    if (link) hdr->next_count++;
+
+    return ptr + sizeof(PHM_Hdr);
+}
+
+/*
+Memory Alloc -
+Allocate Memory on the heap with type Read/Write
+*/
+inline void* alloc(usize_t size) {
+    return exalloc(size, __MEMTYPE_READ__ | __MEMTYPE_WRITE__, PNULL);
+}
+
+/* De Alloc -
+Deallocate the heap Allocated Memory
+*/
+inline bool dealloc(void* ptr) {
+    if (ptr == PNULL) return false;
+    struct PHM_Hdr* hdr = ptr - sizeof(PHM_Hdr);
+
+    if (hdr->next && hdr->next_count > 0) dealloc(hdr->next);
+
+    if (hdr->flags != 0) return false; // DeAllocated Probably
+    usize_t size = hdr->size + sizeof(PHM_Hdr);
+    #if defined(__linux__)
+        munmap((void*)hdr, size); // Hdr already points to the starting pos
+    #elif defined(_WIN32)
+        VirtualFree((void*)hdr, size, MEM_RELEASE);
+    #else
+        return false;
+    #endif
+
+    return true;
+}
+
+/*
+Zeroed Memory Allocation -
+Allocate Zeroed Memory on the heap with type Read/Write
+*/
+inline void* zalloc(usize_t size) {
+    void* ptr = exalloc(size, __MEMTYPE_READ__ | __MEMTYPE_WRITE__, PNULL);
+    if (ptr == PNULL) return ptr;
+    if (!fillbuf(ptr, 0, size)) { dealloc(ptr); return PNULL; }
     return ptr;
 }
+
+/*
+Re Memory Allocation -
+Reallocate Memory on the heap with type Read/Write
+*/
+inline void* ralloc(void* ptr, usize_t size) {
+    void* nptr = exalloc(size, __MEMTYPE_WRITE__ | __MEMTYPE_READ__, ptr);
+    if (nptr == PNULL) { dealloc(ptr); return PNULL; }
+    return ptr;
+}
+
+/*
+Zeroed Re Memory Allocation -
+Reallocate Zeroed Memory on the heap with type Read/Write
+*/
+inline void* rzalloc(void* ptr, usize_t size) {
+    void* nptr = exalloc(size, __MEMTYPE_READ__ | __MEMTYPE_WRITE__, ptr);
+    if (nptr == PNULL) { dealloc(ptr); return PNULL; }
+    if (!fillbuf(nptr, 0, size)) { dealloc(ptr); return PNULL; }
+    return ptr;
+}
+
