@@ -3,6 +3,7 @@
         "*.arr": "arris",
         "*.pasm": "asm-collection",
         "*.paci": "asm-collection",
-        "cstdlib": "cpp"
+        "cstdlib": "c",
+        "*.h": "c"
     }
 }
