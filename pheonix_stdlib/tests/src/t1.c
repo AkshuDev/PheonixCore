@@ -1,30 +1,147 @@
 #include <pstdlib.h>
 #include <pio.h>
 
-int main() {
-    // Basic Printing
-    print("Printing is working!\n", 21);
+#define ITERATIONS 200
+#define FILES 10
+#define BLOCKS 50
 
-    // Allocate some zeroed memory
-    char* buf = (char*)zalloc(43);
-    copybuf("File Opening/Writing/Closing is working!\n", buf, 42);
-    buf[42] = '\0';
+static void exit_hook_1(void) {
+    print("[exit] hook 1\n", 15);
+}
 
-    PIO_Stream* f = sopen_file("t1.txt", PSTREAM_FLAG_WRITE);
-    swrite(f, buf, 43);
-    sclose(f);
+static void exit_hook_2(void) {
+    print("[exit] hook 2\n", 15);
+}
 
-    print("Created File [t1.txt] and written contents into it!\n", 52);
-    PIO_Stream* f2 = sopen_file("t1.txt", PSTREAM_FLAG_READ); // Reopening just to ensure reading and opening works, however can also use write and read both at once
-    // Dealloc buffer
-    dealloc(buf);
+int main(int argc, char** argv) {
+    print("=== PStdLib STRESS TEST START ===\n", 34);
 
-    char* buf2 = (char*)alloc(52);
-    sread(f2, buf2, 43);
-    sclose(f2);
-    print(buf2, 43);
-    print("\n", 1);
-    dealloc(buf2);
+    // Register exit handlers (tests LIFO + cleanup correctness)
+    aexitf(exit_hook_1);
+    aexitf(exit_hook_2);
+
+    // 1. Heap Stress (alloc/free chaos)
+    print("[heap] stress test...\n", 23);
+
+    void* ptrs[BLOCKS];
+
+    for (int i = 0; i < BLOCKS; i++) {
+        ptrs[i] = alloc(1 + (i * 7) % 128);
+        fillbuf(ptrs[i], (byte_t)(i), 1 + (i * 7) % 128);
+    }
+
+    // shuffle dealloc order
+    for (int i = BLOCKS - 1; i >= 0; i--) {
+        dealloc(ptrs[i]);
+    }
+
+    print("[heap] realloc stress...\n", 27);
+
+    void* r = alloc(16);
+    for (int i = 0; i < ITERATIONS; i++) {
+        r = ralloc(r, (i % 64) + 1);
+        fillbuf(r, (byte_t)i, (i % 64) + 1);
+    }
+    dealloc(r);
+
+    // 2. String + env stress
+    print("[string/env] stress...\n", 25);
+
+    char* env = retenv("PATH");
+    if (env) {
+        print(env, strlen(env));
+        print("\n", 1);
+    }
+
+    char bigbuf[256];
+    fillbuf(bigbuf, 'A', 255);
+    bigbuf[255] = '\0';
+
+    char copy[256];
+    strcopy(bigbuf, copy);
+    strscopy(copy, bigbuf, 128);
+
+    // 3. File IO chaos test
+    print("[io] file stress...\n", 22);
+
+    for (int i = 0; i < FILES; i++) {
+        char name[32] = "fileX.txt";
+        name[4] = '0' + i;
+
+        PIO_Stream* f = sopen_file(name, PSTREAM_FLAG_WRITE);
+
+        for (int j = 0; j < 20; j++) {
+            char line[64];
+            fillbuf(line, 'A' + (i + j) % 26, 63);
+            line[63] = '\n';
+            swrite(f, line, 64);
+        }
+
+        sclose(f);
+    }
+
+    // Read them back randomly
+    for (int i = FILES - 1; i >= 0; i--) {
+        char name[32] = "fileX.txt";
+        name[4] = '0' + i;
+
+        PIO_Stream* f = sopen_file(name, PSTREAM_FLAG_READ);
+
+        char* buf = alloc(128);
+        sread(f, buf, 127);
+        buf[127] = '\0';
+
+        print(buf, strlen(buf));
+        print("\n", 1);
+
+        dealloc(buf);
+        sclose(f);
+    }
+
+    // 4. Buffer edge cases
+    print("[buffer] edge cases...\n", 25);
+
+    char a[16];
+    char b[16];
+
+    fillbuf(a, 0xAA, 16);
+    movebuf(a, b, 16);
+
+    if (cmpbuf(a, b, 16)) {
+        print("movebuf/cmpbuf OK\n", 19);
+    }
+
+    // 5. Alignment stress
+    print("[align] tests...\n", 18);
+
+    void* p = alloc(64);
+    void* ap = alignptr(p, 16);
+
+    if (isaligned(ap, 16)) {
+        print("alignment OK\n", 14);
+    }
+
+    dealloc(p);
+
+    // 6. Recursive syscall pressure
+    print("[syscall] pressure...\n", 23);
+
+    for (int i = 0; i < 1000; i++) {
+        __plib_syscall(39); // getpid (safe syscall spam)
+    }
+
+    // 7. Intentional misuse (sanity breaker)
+    print("[stress] intentional edge misuse...\n", 38);
+
+    char* bad = alloc(1);
+    fillbuf(bad, 0xFF, 1);
+    dealloc(bad);
+
+    bad = alloc(0); // edge case test
+    dealloc(bad); // should not crash
+
+    // END
+    print("=== STRESS TEST COMPLETE ===\n", 30);
 
     return 0;
 }

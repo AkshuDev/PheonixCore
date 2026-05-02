@@ -16,7 +16,7 @@ BUILD ?= debug
 # Compiler
 CC := gcc
 
-CFLAGS_BASE := -fPIC -I$(INC_DIR)
+CFLAGS_BASE := -nostdlib -fno-stack-protector -ffreestanding -I$(INC_DIR)
 LDFLAGS := -shared
 
 ifeq ($(BUILD),release)
@@ -28,25 +28,39 @@ endif
 # Sources / Objects
 SRCS := $(wildcard $(SRC_DIR)/*.c)
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
+SRCS_ASM := $(filter-out $(SRC_DIR)/asm/$(ARCH)/$(OS)/psrt.S,$(wildcard $(SRC_DIR)/asm/$(ARCH)/$(OS)/*.S))
+OBJS_ASM := $(patsubst $(SRC_DIR)/asm/$(ARCH)/$(OS)/%.S,$(BUILD_DIR)/asm/$(ARCH)/$(OS)/%.o,$(SRCS_ASM))
+SRCS_PSRT := $(SRC_DIR)/asm/$(ARCH)/$(OS)/psrt.S
 
 # Output
 OUT_DIR := $(BIN_DIR)/$(OS)/$(ARCH)
 OUT_LIB := $(OUT_DIR)/lib$(NAME).so
+OUT_PSRT := $(OUT_DIR)/psrt.o
 
 .PHONY: all clean help build_win dirs
 
-all: dirs $(OUT_LIB)
+all: dirs $(OUT_LIB) $(OUT_PSRT)
+	@echo "Build done for Arch=$(ARCH) OS=$(OS), at $(OUT_LIB)"
 
 dirs:
 	@mkdir -p $(BUILD_DIR)
 	@mkdir -p $(OUT_DIR)
+	@mkdir -p $(BUILD_DIR)/asm $(BUILD_DIR)/asm/$(ARCH) $(BUILD_DIR)/asm/$(ARCH)/$(OS)
 
-$(OUT_LIB): $(OBJS)
+$(OUT_PSRT): $(SRCS_PSRT)
+	@echo "Assembling $< -> $@"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OUT_LIB): $(OBJS) $(OBJS_ASM)
 	@echo "Linking $(OUT_LIB)..."
-	@$(CC) $(LDFLAGS) $(OBJS) -o $@
+	@$(CC) $(LDFLAGS) $(OBJS) $(OBJS_ASM) -o $@
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@echo "Compiling $< -> $@"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/asm/$(ARCH)/$(OS)/%.o: $(SRC_DIR)/asm/$(ARCH)/$(OS)/%.S
+	@echo "Assembling $< -> $@"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 build_win:

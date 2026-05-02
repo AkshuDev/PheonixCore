@@ -1,5 +1,8 @@
 /*
 Pheonix Standard Library
+
+NOTES:
+    its recommended to compile without normal STDLIB to force Pheonix Stdlib, as well as the Pheonix Startup Runtime (PSRT) so specific functios like retenv or setenv work.
 */
 
 #pragma once
@@ -51,6 +54,9 @@ char* str = (char*)PNULL;
 #define __MEMTYPE_READ__ 2 // Memory Type: Read
 #define __MEMTYPE_WRITE__ 3 // Memory Type: Write
 #define __MEMTYPE_NONE__ 4 // Memory Type: None (Will be not accessed)
+
+#define __PHM_HDR_FLAG_ALLOCATED__ (1 << 0)
+#define __PHM_HDR_FLAG_AUTO_FREE__ (1 << 1)
 
 // Bool
 #if __STDC_VERSION__ >= 199901L
@@ -156,8 +162,17 @@ Reserved for Memory Allocation uses
 struct PHM_Hdr {
     usize_t size; // Size of allocation
     u32 flags; // 32-bit Flags
+    usize_t auto_free_idx; // Auto free idx (if auto_free == true)
     struct PHM_Hdr *next; // Next linked allocation
     usize_t next_count; // Number of linked allocations
+};
+
+/*
+PEHdlr: Pheonix Exit Handler
+*/
+struct PEHdlr {
+    void (*func)(void);
+    struct PEHdlr* next;
 };
 
 // Functions
@@ -180,6 +195,12 @@ Needs Arguments based on OS, all of size llong_t, if the Machine doesn't support
 NOTE: Doesn't Support Windows as windows itself prefers using NTDLL
 */
 __IFN llong_t __plib_syscall(int id, ...);
+
+/*
+Reset Environment Variables -
+Do not use, only to be used by PSRT (Pheonix Startup Runtime)
+*/
+__IFN void __plib_reset_env(char** envp, usize_t envp_count);
 
 /* Copy Buffer -
 Copy Memory from one place to another with specified size
@@ -215,7 +236,7 @@ __IFN uoff_t findbyte(void *search_area, byte_t byte, usize_t size);
 Extended Memory Alloc :
 Allocate Memory on the Heap, Can provide type of memory, such as Exec
 */
-__IFN void *exalloc(usize_t size, uint_t type, void *link); 
+__IFN void *exalloc(usize_t size, uint_t type, void *link, bool auto_free); 
 
 /*
 Memory Alloc -
@@ -245,6 +266,113 @@ Zeroed Re Memory Allocation -
 Reallocate Zeroed Memory on the heap with type Read/Write
 */
 __IFN void *rzalloc(void *ptr, usize_t size);
+
+/*
+Align Pointer: Aligns a pointer 
+*/
+__IFN void* alignptr(void* ptr, usize_t alignment);
+
+/*
+Align Buffer: Aligns a buffer and returns a pointer to the aligned memory
+*/
+__IFN void* alignbuf(void* buf, usize_t alignment);
+
+/*
+Is Aligned: Checks if a pointer is already aligned to the given boundry
+*/
+__IFN bool isaligned(void* ptr, usize_t alignment);
+
+/*
+Align Up: Aligns a value up to the nearest multiple of alignment
+*/
+__IFN usize_t alignup(usize_t val, usize_t alignment);
+
+/*
+Align Down: Aligns a value down to the nearest multiple of the alignment
+*/
+__IFN usize_t aligndown(usize_t val, usize_t alignment);
+
+/*
+String Length -
+Returns the length of a string (char*)
+*/
+__IFN usize_t strlen(const char* str);
+
+/*
+String Copy -
+Copy a string from one place to another
+*/
+__IFN bool strcopy(const char* src, char* dest);
+
+/*
+String Size Copy -
+Copy a string of the specified size from one place to another
+*/
+__IFN bool strscopy(const char* src, char* dest, usize_t size);
+
+/*
+String Compare -
+Compare a string with another string
+
+Returns:
+1. true = Equal
+2. false = Not Equal
+*/
+__IFN bool strcmp(char* a, char* b);
+
+/*
+String Size Compare -
+Compare specified bytes of a string with another string
+
+Returns:
+1. true = Equal
+2. false = Not Equal
+*/
+__IFN bool strncmp(char* a, char* b, usize_t size);
+
+/*
+String Find Character  -
+Find the specified occurance of the provided character and return the part of the string with that character and after it
+*/
+__IFN char* strfindc(char* str, char c, usize_t occurance);
+
+/*
+String Split -
+Find the specified occurance of the provided character and return a new string of either the part before or after the character
+*/
+__IFN char* strsplit(char* str, char c, usize_t occurance, bool first_part);
+
+/*
+Retrieve Environment -
+Retrieve and returns an environment variable
+*/
+__IFN char* retenv(const char* name);
+
+/*
+Set Environment -
+Set and returns an environment variable
+*/
+__IFN bool setenv(const char* name, const char* val, bool overwrite);
+
+/*
+Append Exit Functions -
+Add a new entry to a list of functions that is executed upon exit (not abort)
+
+NOTE: These functions are executed from last appended to first appended
+*/
+__IFN bool aexitf(void (*func)(void));
+
+/*
+Exit -
+Exits the program gracefully, flushing everything properly
+*/
+__IFN __attribute__((noreturn)) void exit(int status);
+
+/*
+Abort -
+Immedietly Terminates the program with a core dump
+*/
+__IFN __attribute__((noreturn)) void abort(void);
 
 #ifdef __cplusplus
 }
