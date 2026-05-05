@@ -115,6 +115,10 @@ typedef char s8; // Signed 8-bit
 typedef short s16; // Signed 16-bit
 typedef int s32; // Signed 32-bit
 typedef long long s64; // Signed 64-bit
+typedef char i8; // Signed 8-bit
+typedef short i16; // Signed 16-bit
+typedef int i32; // Signed 32-bit
+typedef long long i64; // Signed 64-bit
 typedef char u8; // Unsigned 8-bit
 typedef short u16; // Unsigned 16-bit
 typedef int u32; // Unsigned 32-bit
@@ -355,6 +359,13 @@ Set and returns an environment variable
 __IFN bool setenv(const char* name, const char* val, bool overwrite);
 
 /*
+i64_to_str: Int 64 to String
+
+Convert an integer of size 8 bytes or 64 bits to string
+*/
+__IFN char* i64_to_str(i64 v, char* buf, int base);
+
+/*
 Append Exit Functions -
 Add a new entry to a list of functions that is executed upon exit (not abort)
 
@@ -373,6 +384,28 @@ Abort -
 Immedietly Terminates the program with a core dump
 */
 __IFN __attribute__((noreturn)) void abort(void);
+
+// Externals
+
+/*
+start_va: Start Variadic Arguments
+Starts Variadic Arguments
+*/
+#define start_va __builtin_va_start
+/*
+va_arg: Variadic Argument
+Returns the next Variadic Argument
+*/
+#define va_arg __builtin_va_arg
+/*
+end_va: End Variadic Arguments
+Ends Variadic Arguments
+*/
+#define end_va __builtin_va_end
+/*
+va_list: Variadic Argument List
+*/
+#define va_list __builtin_va_list
 
 #ifdef __cplusplus
 }

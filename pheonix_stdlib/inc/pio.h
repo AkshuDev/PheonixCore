@@ -38,111 +38,19 @@ typedef struct {
     PIO_Errors last_err;
 } PIO_Stream;
 
-#if defined(_WIN32)
-/*
-Pheonix Standard Output Stream
-*/
-static PIO_Stream PStdoutStream = {
-    .stream={
-        .handle=(uptr_t)GetStdHandle(STD_OUTPUT_HANDLE),
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_WRITE,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err=PIO_ERR_NONE
-};
+extern PIO_Stream PStdoutStream; // Standard output stream
+extern PIO_Stream PStdinStream; // Standard input stream
+extern PIO_Stream PStderrStream; // Standard error stream
+
+#define s_stdout PStdoutStream // Standard output stream
+#define s_stdin PStdinStream // Standard input stream
+#define s_stderr PStderrStream // Standard error stream
 
 /*
-Pheonix Standard Input Stream
+__pio_init_streams - Initialize Streams (Auto done when using PSRT)
+Initializes Basic Streams for Operating systems with varying stream handles such as Windows
 */
-static PIO_Stream PStdinStream = {
-    .stream={
-        .handle=(uptr_t)GetStdHandle(STD_INPUT_HANDLE),
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_READ,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err=PIO_ERR_NONE
-};
-
-
-/*
-Pheonix Standard Error Stream
-*/
-static PIO_Stream PStderrStream = {
-    .stream={
-        .handle=(uptr_t)GetStdHandle(STD_ERROR_HANDLE),
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_WRITE,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err=PIO_ERR_NONE
-};
-#else
-/*
-Pheonix Standard Output Stream
-*/
-static PIO_Stream PStdoutStream = {
-    .stream={
-        .handle=__lstdout,
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_WRITE,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err=PIO_ERR_NONE
-};
-
-/*
-Pheonix Standard Input Stream
-*/
-static PIO_Stream PStdinStream = {
-    .stream={
-        .handle=__lstdin,
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_READ,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err=PIO_ERR_NONE
-};
-
-
-/*
-Pheonix Standard Error Stream
-*/
-static PIO_Stream PStderrStream = {
-    .stream={
-        .handle=__lstderr,
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_WRITE,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err=PIO_ERR_NONE
-};
-#endif
+__IFN void __pio_init_streams(void);
 
 /*
 sopen_file - Stream Open File

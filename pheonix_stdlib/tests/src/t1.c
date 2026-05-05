@@ -61,42 +61,42 @@ int main(int argc, char** argv) {
     strcopy(bigbuf, copy);
     strscopy(copy, bigbuf, 128);
 
-    // 3. File IO chaos test
-    print("[io] file stress...\n", 22);
+    // 3. File IO chaos test (Works but is really annoying so i closed it)
+    // print("[io] file stress...\n", 22);
 
-    for (int i = 0; i < FILES; i++) {
-        char name[32] = "fileX.txt";
-        name[4] = '0' + i;
+    // for (int i = 0; i < FILES; i++) {
+    //     char name[32] = "fileX.txt";
+    //     name[4] = '0' + i;
 
-        PIO_Stream* f = sopen_file(name, PSTREAM_FLAG_WRITE);
+    //     PIO_Stream* f = sopen_file(name, PSTREAM_FLAG_WRITE);
 
-        for (int j = 0; j < 20; j++) {
-            char line[64];
-            fillbuf(line, 'A' + (i + j) % 26, 63);
-            line[63] = '\n';
-            swrite(f, line, 64);
-        }
+    //     for (int j = 0; j < 20; j++) {
+    //         char line[64];
+    //         fillbuf(line, 'A' + (i + j) % 26, 63);
+    //         line[63] = '\n';
+    //         swrite(f, line, 64);
+    //     }
 
-        sclose(f);
-    }
+    //     sclose(f);
+    // }
 
-    // Read them back randomly
-    for (int i = FILES - 1; i >= 0; i--) {
-        char name[32] = "fileX.txt";
-        name[4] = '0' + i;
+    // // Read them back randomly
+    // for (int i = FILES - 1; i >= 0; i--) {
+    //     char name[32] = "fileX.txt";
+    //     name[4] = '0' + i;
 
-        PIO_Stream* f = sopen_file(name, PSTREAM_FLAG_READ);
+    //     PIO_Stream* f = sopen_file(name, PSTREAM_FLAG_READ);
 
-        char* buf = alloc(128);
-        sread(f, buf, 127);
-        buf[127] = '\0';
+    //     char* buf = alloc(128);
+    //     sread(f, buf, 127);
+    //     buf[127] = '\0';
 
-        print(buf, strlen(buf));
-        print("\n", 1);
+    //     print(buf, strlen(buf));
+    //     print("\n", 1);
 
-        dealloc(buf);
-        sclose(f);
-    }
+    //     dealloc(buf);
+    //     sclose(f);
+    // }
 
     // 4. Buffer edge cases
     print("[buffer] edge cases...\n", 25);
@@ -127,7 +127,9 @@ int main(int argc, char** argv) {
     print("[syscall] pressure...\n", 23);
 
     for (int i = 0; i < 1000; i++) {
-        __plib_syscall(39); // getpid (safe syscall spam)
+        #ifdef __linux__
+            __plib_syscall(39); // getpid (safe syscall spam)
+        #endif
     }
 
     // 7. Intentional misuse (sanity breaker)

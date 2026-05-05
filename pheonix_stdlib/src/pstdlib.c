@@ -23,7 +23,7 @@ __IFN llong_t __plib_syscall(int id, ...) {
             llong_t a[6] = {0};
             for (int i = 0; i < 6; i++)
                 a[i] = args[i];
-            asm volatile (
+            __asm__ volatile (
                 "mov %[num], %%rax\n\t"
                 "mov %[a1], %%rdi\n\t"
                 "mov %[a2], %%rsi\n\t"
@@ -45,7 +45,7 @@ __IFN llong_t __plib_syscall(int id, ...) {
             int a[5] = {0};
             for (int i = 0; i < 5; i++)
                 a[i] = (int)args[i];
-            asm volatile (
+            __asm__ volatile (
                 "mov %[num], %%eax\n\t"
                 "mov %[a1], %%ebx\n\t"
                 "mov %[a2], %%ecx\n\t"
@@ -64,7 +64,7 @@ __IFN llong_t __plib_syscall(int id, ...) {
         llong_t a[8] = {0};
         for (int i = 0; i < 8; i++)
             a[i] = args[i];
-        asm volatile (
+        __asm__ volatile (
             "mov x8, %[num]\n\t"
             "mov x0, %[a1]\n\t"
             "mov x1, %[a2]\n\t"
@@ -88,7 +88,7 @@ __IFN llong_t __plib_syscall(int id, ...) {
         llong_t a[7] = {0};
         for (int i = 0; i < 7; i++)
             a[i] = args[i];
-        asm volatile (
+        __asm__ volatile (
             "mov r7, %[num]\n\t"
             "mov r0, %[a1]\n\t"
             "mov r1, %[a2]\n\t"
@@ -331,7 +331,7 @@ __IFN void* alloc(usize_t size) {
 __IFN bool dealloc(void* ptr) {
     if (ptr == PNULL)
         return false;
-    struct PHM_Hdr* hdr = ptr - sizeof(struct PHM_Hdr);
+    struct PHM_Hdr* hdr = (struct PHM_Hdr*)((u8*)ptr - sizeof(struct PHM_Hdr));
 
     if (hdr->next && hdr->next_count > 0)
         dealloc(hdr->next);
@@ -376,7 +376,7 @@ __IFN void* ralloc(void* ptr, usize_t size) {
     if (nptr == PNULL) {
         return PNULL;
     }
-    struct PHM_Hdr* hdr = ptr - sizeof(struct PHM_Hdr);
+    struct PHM_Hdr* hdr = (struct PHM_Hdr*)((u8*)ptr - sizeof(struct PHM_Hdr));
     if (!(hdr->flags & __PHM_HDR_FLAG_ALLOCATED__)) return PNULL; // Cant reallocate
     copybuf(ptr, nptr, hdr->size);
 
@@ -394,7 +394,7 @@ __IFN void* rzalloc(void* ptr, usize_t size) {
         return PNULL;
     }
 
-    struct PHM_Hdr* hdr = ptr - sizeof(struct PHM_Hdr);
+    struct PHM_Hdr* hdr = (struct PHM_Hdr*)((u8*)ptr - sizeof(struct PHM_Hdr));
     if (!(hdr->flags & __PHM_HDR_FLAG_ALLOCATED__)) return PNULL; // Cant reallocate
     copybuf(ptr, nptr, hdr->size);
 
@@ -507,7 +507,7 @@ __IFN char* retenv(const char* name) {
         char* e = env_vars[i];
         if (!e) continue;
 
-        if (!strncmp(e, name, len) && e[len] == '=') {
+        if (!strncmp(e, (char*)name, len) && e[len] == '=') {
             return e + len + 1;
         }
     }
@@ -525,7 +525,7 @@ __IFN bool setenv(const char* name, const char* val, bool overwrite) {
         char* e = env_vars[i];
         if (!e) continue;
 
-        if (!strncmp(e, name, nlen) && e[nlen] == '=') {
+        if (!strncmp(e, (char*)name, nlen) && e[nlen] == '=') {
             if (!overwrite)
                 return true;
 
@@ -563,6 +563,131 @@ __IFN bool setenv(const char* name, const char* val, bool overwrite) {
     env_vars[env_count++] = ne;
 
     return true;
+}
+
+__IFN char* i64_to_str(i64 v, char* buf, int base) {
+    char* p = buf;
+    bool neg = false;
+
+    u64 val;
+    if (base == 10 && v < 0) {
+        neg = true;
+        val = (u64)(-(v + 1)) + 1;
+    } else {
+        val = (u64)v;
+    }
+
+    do {
+        u64 digit = val % base;
+        *p++ = (digit < 10) ? ('0' + digit) : ('a' + digit - 10);
+        val /= base;
+    } while (val);
+
+    if (neg)
+        *p++ = '-';
+
+    *p = '\0';
+
+    char* start = buf;
+    char* end = p - 1;
+
+    while (start < end) {
+        char tmp = *start;
+        *start++ = *end;
+        *end-- = tmp;
+    }
+
+    return buf;
+}
+
+__IFN char* u64_to_str(u64 v, char* buf, int base) {
+    char* p = buf;
+
+    u64 val = (u64)v;
+
+    do {
+        u64 digit = val % base;
+        *p++ = (digit < 10) ? ('0' + digit) : ('a' + digit - 10);
+        val /= base;
+    } while (val);
+
+    *p = '\0';
+
+    char* start = buf;
+    char* end = p - 1;
+
+    while (start < end) {
+        char tmp = *start;
+        *start++ = *end;
+        *end-- = tmp;
+    }
+
+    return buf;
+}
+
+__IFN u64 str_to_u64(const char* str, int base) {
+    if (!str || base < 2 || base > 36) return 0;
+
+    u64 result = 0;
+
+    if (*str == '+') str++;
+
+    while (*str) {
+        int digit = char_to_digit(*str);
+        if (digit < 0 || digit >= base)
+            break;
+
+        if (result > ((u64)(-1) - digit) / base) {
+            return (u64)(-1);
+        }
+
+        result = result * base + digit;
+        str++;
+    }
+
+    return result;
+}
+
+__IFN s64 str_to_i64(const char* s, int base) {
+    if (!s || base < 2 || base > 36) return 0;
+
+    i64 max_int = (1U << (sizeof(i64) * 8 - 1)) - 1;
+    i64 min_int = 1 << (sizeof(i64) * 8 - 1);
+
+    bool neg = false;
+
+    if (*s == '-') {
+        neg = true;
+        s++;
+    } else if (*s == '+') {
+        s++;
+    }
+
+    u64 result = 0;
+
+    while (*s) {
+        int digit = char_to_digit(*s);
+        if (digit < 0 || digit >= base)
+            break;
+
+        if (result > ((u64)(-1) - digit) / base) {
+            return neg ? min_int : max_int;
+        }
+
+        result = result * base + digit;
+        s++;
+    }
+
+    if (neg) {
+        if (result > (u64)max_int + 1)
+            return min_int;
+        return -(s64)result;
+    }
+
+    if (result > (u64)((max_int)))
+        return max_int;
+
+    return (s64)result;
 }
 
 __IFN bool aexitf(void (*func)(void)) {
