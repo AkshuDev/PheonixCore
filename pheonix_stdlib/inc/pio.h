@@ -38,9 +38,9 @@ typedef struct {
     PIO_Errors last_err;
 } PIO_Stream;
 
-extern PIO_Stream PStdoutStream; // Standard output stream
-extern PIO_Stream PStdinStream; // Standard input stream
-extern PIO_Stream PStderrStream; // Standard error stream
+extern PIO_Stream* PStdoutStream; // Standard output stream
+extern PIO_Stream* PStdinStream; // Standard input stream
+extern PIO_Stream* PStderrStream; // Standard error stream
 
 #define s_stdout PStdoutStream // Standard output stream
 #define s_stdin PStdinStream // Standard input stream
@@ -97,11 +97,33 @@ within the PIO_Stream.
 __IFN ulen_t stell(PIO_Stream *pio);
 
 /*
-fprint - Formatted Print to Stream
+get_lasterr_msg: Get Last Error Message
+Uses STDERR stream to retrieve the last error and returns its string representation
+*/
+__IFN const char* get_lasterr_msg(void);
+
+/*
+vfprints - Variadic Argument Formatted Print to Stream
+Writes a formatted string to the specified PIO_Stream. Returns
+the number of characters written or a negative value on error.
+
+Requires Variadic Argument List
+*/
+__IFN int vfprints(PIO_Stream *pio, const char *format, va_list ap);
+
+/*
+fprints - Formatted Print to Stream
 Writes a formatted string to the specified PIO_Stream. Returns
 the number of characters written or a negative value on error.
 */
-__IFN int fprint(PIO_Stream *pio, const char *format, ...);
+__IFN int fprints(PIO_Stream *pio, const char *format, ...);
+
+/*
+print - Formatted Print
+Writes a formatted string to stdout stream. Returns
+the number of characters written or a negative value on error.
+*/
+#define fprint(format, ...) fprints(s_stdout, format, ##__VA_ARGS__)
 
 /*
 print - Formatted Print to Standard Output
@@ -115,7 +137,7 @@ perror - Formatted Print to Standard Error
 Writes a formatted string to stderr. Returns the number of
 characters written or a negative value on error.
 */
-__IFN int perror(const char *format, ...);
+__IFN int perror(const char* format, ...);
 
 /*
 seof - Stream End-of-File

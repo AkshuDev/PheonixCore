@@ -349,6 +349,7 @@ __IFN bool dealloc(void* ptr) {
     }
 
     usize_t size = hdr->size + sizeof(struct PHM_Hdr);
+    fillbuf(hdr, 0, sizeof(struct PHM_Hdr)); // Invalidate
     #if defined(__linux__)
         munmap((void* )hdr, size); // Hdr already points to the starting pos
     #elif defined(_WIN32)
@@ -625,6 +626,58 @@ __IFN char* u64_to_str(u64 v, char* buf, int base) {
     return buf;
 }
 
+__IFN char* double_to_str(double v, char* buf, int precision) {
+    if (!buf) return 0;
+
+    if (precision < 0) precision = 6;
+
+    char* p = buf;
+
+    if (v < 0) {
+        *p++ = '-';
+        v = -v;
+    }
+
+    i64 int_part = (i64)v;
+    double frac = v - (double)int_part;
+
+    char tmp[32];
+    char* t = tmp;
+
+    do {
+        *t++ = '0' + (int_part % 10);
+        int_part /= 10;
+    } while (int_part);
+
+    while (t > tmp)
+        *p++ = *--t;
+
+    *p++ = '.';
+
+    for (int i = 0; i < precision; i++) {
+        frac *= 10.0;
+        int digit = (int)frac;
+        *p++ = '0' + digit;
+        frac -= digit;
+    }
+
+    *p = 0;
+    return buf;
+}
+
+__IFN int char_to_digit(char c) {
+    if (c >= '0' && c <= '9')
+        return c - '0';
+
+    if (c >= 'a' && c <= 'z')
+        return c - 'a' + 10;
+
+    if (c >= 'A' && c <= 'Z')
+        return c - 'A' + 10;
+
+    return -1;
+}
+
 __IFN u64 str_to_u64(const char* str, int base) {
     if (!str || base < 2 || base > 36) return 0;
 
@@ -637,8 +690,8 @@ __IFN u64 str_to_u64(const char* str, int base) {
         if (digit < 0 || digit >= base)
             break;
 
-        if (result > ((u64)(-1) - digit) / base) {
-            return (u64)(-1);
+        if (result > (UINT64_MAX - digit) / base) {
+            return UINT64_MAX;
         }
 
         result = result * base + digit;
@@ -648,46 +701,142 @@ __IFN u64 str_to_u64(const char* str, int base) {
     return result;
 }
 
-__IFN s64 str_to_i64(const char* s, int base) {
-    if (!s || base < 2 || base > 36) return 0;
-
-    i64 max_int = (1U << (sizeof(i64) * 8 - 1)) - 1;
-    i64 min_int = 1 << (sizeof(i64) * 8 - 1);
+__IFN s64 str_to_i64(const char* str, int base) {
+    if (!str || base < 2 || base > 36) return 0;
 
     bool neg = false;
 
-    if (*s == '-') {
+    if (*str == '-') {
         neg = true;
-        s++;
-    } else if (*s == '+') {
-        s++;
+        str++;
+    } else if (*str == '+') {
+        str++;
     }
 
     u64 result = 0;
 
-    while (*s) {
-        int digit = char_to_digit(*s);
+    while (*str) {
+        int digit = char_to_digit(*str);
         if (digit < 0 || digit >= base)
             break;
 
-        if (result > ((u64)(-1) - digit) / base) {
-            return neg ? min_int : max_int;
+        if (result > (UINT64_MAX - digit) / base) {
+            return neg ? INT64_MIN : INT64_MAX;
         }
 
         result = result * base + digit;
-        s++;
+        str++;
     }
 
     if (neg) {
-        if (result > (u64)max_int + 1)
-            return min_int;
+        if (result > (u64)INT64_MAX + 1)
+            return INT64_MIN;
         return -(s64)result;
     }
 
-    if (result > (u64)((max_int)))
-        return max_int;
+    if (result > (u64)INT64_MAX)
+        return INT64_MAX;
 
     return (s64)result;
+}
+
+__IFN double str_to_double(const char* str) {
+    if (!str) return 0.0;
+
+    double result = 0.0;
+    double frac = 0.0;
+    double div = 1.0;
+    int sign = 1;
+
+    if (*str == '-') { sign = -1; str++; }
+    else if (*str == '+') { str++; }
+
+    while (c_is_digit(*str)) {
+        result = result * 10.0 + (*str - '0');
+        str++;
+    }
+
+    if (*str == '.') {
+        str++;
+        while (c_is_digit(*str)) {
+            frac = frac * 10.0 + (*str - '0');
+            div *= 10.0;
+            str++;
+        }
+        result += frac / div;
+    }
+
+    return result * sign;
+}
+
+__IFN bool c_is_alpha(char c) {
+    c |= 0x20;
+    return (c >= 'a' && c <= 'z') ? true : false;
+}
+
+__IFN bool c_is_digit(char c) {
+    return (c >= '0' && c <= '9') ? true : false;
+}
+
+__IFN bool c_is_alphanum(char c) {
+    return c_is_alpha(c) || c_is_digit(c);
+}
+
+__IFN bool is_alpha(char* s) {
+    for (char* p = s; *p; p++) {
+        if (!c_is_alpha(*p)) return false;
+    }
+    return true;
+}
+
+__IFN bool is_digit(char* s) {
+    for (char* p = s; *p; p++) {
+        if (!c_is_digit(*p)) return false;
+    }
+    return true;
+}
+
+__IFN bool is_alphanum(char* s) {
+    for (char* p = s; *p; p++) {
+        if (!c_is_alphanum(*p)) return false;
+    }
+    return true;
+}
+
+__IFN bool is_float(char* s) {
+    if (!s || !*s) return 0;
+
+    bool has_digit = false;
+    bool has_dot = false;
+
+    if (*s == '+' || *s == '-') s++;
+
+    while (*s) {
+        if (c_is_digit(*s)) {
+            has_digit = true;
+        } else if (*s == '.' && !has_dot) {
+            has_dot = true;
+        } else {
+            return false;
+        }
+        s++;
+    }
+
+    return has_digit;
+}
+
+__IFN i64 append_i64(i64 a, i64 b) {
+    if (b == 0) return a * 10;
+
+    i64 tmp = b;
+    i64 mult = 1;
+
+    while (tmp > 0) {
+        mult *= 10;
+        tmp /= 10;
+    }
+
+    return a * mult + b;
 }
 
 __IFN bool aexitf(void (*func)(void)) {

@@ -119,10 +119,12 @@ typedef char i8; // Signed 8-bit
 typedef short i16; // Signed 16-bit
 typedef int i32; // Signed 32-bit
 typedef long long i64; // Signed 64-bit
-typedef char u8; // Unsigned 8-bit
-typedef short u16; // Unsigned 16-bit
-typedef int u32; // Unsigned 32-bit
-typedef long long u64; // Unsigned 64-bit
+typedef unsigned char u8; // Unsigned 8-bit
+typedef unsigned short u16; // Unsigned 16-bit
+typedef unsigned int u32; // Unsigned 32-bit
+typedef unsigned long long u64; // Unsigned 64-bit
+
+typedef unsigned int uint; // Unsigned int
 
 // Enums
 
@@ -189,6 +191,27 @@ struct PEHdlr {
 #else
     #define __IFN // Internal Function
 #endif
+
+// Limits
+#define INT64_MAX 0x7FFFFFFFFFFFFFFF
+#define INT64_MIN 0x8000000000000000
+#define INT32_MAX 0x7FFFFFFF
+#define INT32_MIN 0x80000000
+#define INT16_MAX 0x7FFF
+#define INT16_MIN 0x8000
+#define INT8_MAX 0x7F
+#define INT8_MIN 0x80
+
+#define INT_MAX INT32_MAX
+#define INT_MIN INT32_MIN
+
+#define UINT64_MAX 0xFFFFFFFFFFFFFFFF
+#define UINT32_MAX 0xFFFFFFFF
+#define UINT16_MAX 0xFFFF
+#define UINT8_MAX 0xFF
+
+#define UINT_MAX UINT32_MAX
+#define UINT_MIN UINT32_MIN
 
 /*
 Do a System Call
@@ -364,6 +387,275 @@ i64_to_str: Int 64 to String
 Convert an integer of size 8 bytes or 64 bits to string
 */
 __IFN char* i64_to_str(i64 v, char* buf, int base);
+
+/*
+int_to_str: Int to String
+
+Convert an integer of size 4 bytes or 32 bits to string
+*/
+#define int_to_str(v, buf, base) i64_to_str((int)v, buf, base)
+
+/*
+i32_to_str: Int 32 to String
+
+Convert an integer of size 4 bytes or 32 bits to string
+*/
+#define i32_to_str(v, buf, base) i64_to_str((i32)v, buf, base)
+
+/*
+i16_to_str: Int 16 to String
+
+Convert an integer of size 2 bytes or 16 bits to string
+*/
+#define i16_to_str(v, buf, base) i64_to_str((i16)v, buf, base)
+
+/*
+i8_to_str: Int 8 to String
+
+Convert an integer of size 1 bytes or 8 bits to string
+*/
+#define i8_to_str(v, buf, base) i64_to_str((i8)v, buf, base)
+
+/*
+u64_to_str: Unsigned Int 64 to String
+
+Convert an unsigned integer of size 8 bytes or 64 bits to string
+*/
+__IFN char* u64_to_str(u64 v, char* buf, int base);
+
+/*
+uint_to_str: Unsigned Int to String
+
+Convert an unsigned integer of size 4 bytes or 32 bits to string
+*/
+#define uint_to_str(v, buf, base) u64_to_str((uint)v, buf, base)
+
+/*
+u32_to_str: Unsigned Int 32 to String
+
+Convert an unsigned integer of size 4 bytes or 32 bits to string
+*/
+#define u32_to_str(v, buf, base) u64_to_str((u32)v, buf, base)
+
+/*
+u16_to_str: Unsigned Int 16 to String
+
+Convert an unsigned integer of size 2 bytes or 16 bits to string
+*/
+#define u16_to_str(v, buf, base) u64_to_str((u16)v, buf, base)
+
+/*
+u8_to_str: Unsigned Int 8 to String
+
+Convert an unsigned integer of size 1 bytes or 8 bits to string
+*/
+#define u8_to_str(v, buf, base) u64_to_str((u8)v, buf, base)
+
+/*
+double_to_str: double to String
+
+Convert a double to string
+*/
+__IFN char* double_to_str(double v, char* buf, int precision);
+
+/*
+float_to_str: float to String
+
+Convert a float to string
+*/
+#define float_to_str(v, buf, precision) double_to_str((float)v, buf, precision)
+
+/*
+Character to Digit
+Converts Characters to digits
+*/
+__IFN int char_to_digit(char c);
+
+/*
+str_to_i64: String to Int 64
+
+Convert a string to an integer of size 8 bytes or 64 bits
+*/
+__IFN i64 str_to_i64(const char* str, int base);
+
+/*
+str_to_int: String to Int
+
+Convert a string to an integer of size 4 bytes or 32 bits
+*/
+#define str_to_int(str, base) (int)str_to_i64(str, base)
+
+/*
+str_to_i32: String to Int 32
+
+Convert a string to an integer of size 4 bytes or 32 bits
+*/
+#define str_to_i32(str, base) (i32)str_to_i64(str, base)
+
+/*
+str_to_i16: String to Int 16
+
+Convert a string to an integer of size 2 bytes or 16 bits
+*/
+#define str_to_i16(str, base) (i16)str_to_i64(str, base)
+
+/*
+str_to_i8: String to Int 8
+
+Convert a string to an integer of size 1 bytes or 8 bits
+*/
+#define str_to_i8(str, base) (i8)str_to_i64(str, base)
+
+/*
+str_to_u64: String to Unsigned Int 64
+
+Convert a string to an unsigned integer of size 8 bytes or 64 bits
+*/
+__IFN u64 str_to_u64(const char* str, int base);
+
+/*
+str_to_uint: String to Unsigned Int
+
+Convert a string to an unsigned integer of size 4 bytes or 32 bits
+*/
+#define str_to_uint(str, base) (uint)str_to_u64(str, base)
+
+/*
+str_to_u32: String to Unsigned Int 32
+
+Convert a string to an unsigned integer of size 4 bytes or 32 bits
+*/
+#define str_to_u32(str, base) (u32)str_to_u64(str, base)
+
+/*
+str_to_u16: String to Unsigned Int 16
+
+Convert a string to an unsigned integer of size 2 bytes or 16 bits
+*/
+#define str_to_u16(str, base) (u16)str_to_u64(str, base)
+
+/*
+str_to_u8: String to Unsigned Int 8
+
+Convert a string to an unsigned integer of size 1 bytes or 8 bits
+*/
+#define str_to_u8(str, base) (u8)str_to_u64(str, base)
+
+/*
+str_to_double: String to double
+
+Convert a string to an double
+*/
+__IFN double str_to_double(const char* str);
+
+/*
+str_to_float: String to float
+
+Convert a string to an float
+*/
+#define str_to_float(str) (float)str_to_double(str)
+
+/*
+c_is_alpha: Character is Alphabetical
+Returns true if character is Alphabetical else false
+*/
+__IFN bool c_is_alpha(char c);
+
+/*
+c_is_digit: Character is Numeric
+Returns true if character is a representation of a digit else false
+*/
+__IFN bool c_is_digit(char c);
+
+/*
+c_is_alphanum: Character is Alphanumeric
+Returns true if character is Alphanumeric else false
+*/
+__IFN bool c_is_alphanum(char c);
+
+/*
+is_alpha: String is Alphabetical
+Returns true if string is Alphabetical else false
+*/
+__IFN bool is_alpha(char* s);
+
+/*
+is_digit: String is Numeric
+Returns true if string is a representation of a number else false
+*/
+__IFN bool is_digit(char* s);
+
+/*
+is_alphanum: String is Alphanumeric
+Returns true if string is Alphanumeric else false
+*/
+__IFN bool is_alphanum(char* s);
+
+/*
+is_float: String is float
+Returns true if string is a representation of float else false
+*/
+__IFN bool is_float(char* s);
+
+/*
+Append Int 64
+Decimal Concatinates the 2 specified arguments, and returns them.
+*/
+__IFN i64 append_i64(i64 a, i64 b);
+
+/*
+Append Int
+Decimal Concatinates the 2 specified arguments, and returns them.
+*/
+#define append_int(a, b) (int)append_i64((i64)((int)a), (i64)((int)b));
+
+/*
+Append Int 32
+Decimal Concatinates the 2 specified arguments, and returns them.
+*/
+#define append_i32(a, b) (i32)append_i64((i64)((i32)a), (i64)((i32)b));
+
+/*
+Append Int 16
+Decimal Concatinates the 2 specified arguments, and returns them.
+*/
+#define append_i16(a, b) (i16)append_i64((i64)((i16)a), (i64)((i16)b));
+
+/*
+Append Int 8
+Decimal Concatinates the 2 specified arguments, and returns them.
+*/
+#define append_i8(a, b) (i8)append_i64((i64)((i8)a), (i64)((i8)b));
+
+/*
+Append Unsigned Int 64
+Decimal Concatinates the 2 specified arguments, and returns them.
+*/
+#define append_u64(a, b) (u64)append_i64((i64)((u64)a), (i64)((u64)b));
+
+/*
+Append Unsigned Int
+Decimal Concatinates the 2 specified arguments, and returns them.
+*/
+#define append_uint(a, b) (uint)append_i64((i64)((uint)a), (i64)((uint)b));
+
+/*
+Append Unsigned Int 32
+Decimal Concatinates the 2 specified arguments, and returns them.
+*/
+#define append_u32(a, b) (u32)append_i64((i64)((u32)a), (i64)((u32)b));
+
+/*
+Append Unsigned Int 16
+Decimal Concatinates the 2 specified arguments, and returns them.
+*/
+#define append_u16(a, b) (u16)append_i64((i64)((u16)a), (i64)((u16)b));
+
+/*
+Append Unsigned Int 8
+Decimal Concatinates the 2 specified arguments, and returns them.
+*/
+#define append_u8(a, b) (u8)append_i64((i64)((u8)a), (i64)((u8)b));
 
 /*
 Append Exit Functions -

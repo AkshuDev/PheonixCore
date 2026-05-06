@@ -16,11 +16,55 @@ static void exit_hook_2(void) {
 int main(int argc, char** argv) {
     print("=== PStdLib STRESS TEST START ===\n", 34);
 
+    // fprintf test
+    fprint("[formating print] stress test...\n");
+    fprints(
+        s_stdout,
+        "String test: %s\n"
+        "String test (width test): %2s (Ans: Wo)\n"
+    "NULL String test: %s\n"
+    "Character test: %c (Ans: h)\n"
+    "Int Test (with percentage test): (%%d) %d (%%i) %i (Ans: 42)\n"
+    "Int Test (with width): %1i (Ans: 4)\n"
+    "Int Test (with prefix test): %+d (Ans: +42)\n"
+    "Int Test (with prefix test + l test): %!+ld (Ans: +-42)\n"
+    "Int Test (with prefix test + l test): % ld (Ans:  42)\n"
+    "Int Test (with prefix test): %! d (Ans:  -42)\n"
+    "UInt Test (with prefix test): %+u (Ans: +72)\n"
+    "UInt Test (l test): %lu (Ans: 1099511627775)\n"
+    "Hex Test (with prefix test): %#x (Ans: 0xff)\n"
+    "Hex Test (l test + caps): %lX (Ans: FFFFFFFFFF)\n"
+    "Pointer Test (with caps): %P (Ans: 0xFFFFFFFFFF)\n"
+    "Bin Test (with prefix test): %#b (Ans: 0b100)\n"
+    "Octal Test (with prefix test): %#o (Ans: 0o144)\n"
+    "Float Test: %.3f (Ans: 0.537)\n"
+    "Double Test: %l.9f (Ans: 0.123456789)\n",
+        "Works",
+        "Works",
+        NULL,
+        'h',
+        42, 42,
+        42,
+        42,
+        -42,
+        42,
+        -42,
+        72,
+        0xFFFFFFFFFF,
+        0xFF,
+        0xFFFFFFFFFF,
+        0xFFFFFFFFFF,
+        4,
+        100,
+        0.537,
+        0.123456789
+    );
+
     // Register exit handlers (tests LIFO + cleanup correctness)
     aexitf(exit_hook_1);
     aexitf(exit_hook_2);
 
-    // 1. Heap Stress (alloc/free chaos)
+    // Heap Stress (alloc/free chaos)
     print("[heap] stress test...\n", 23);
 
     void* ptrs[BLOCKS];
@@ -44,13 +88,14 @@ int main(int argc, char** argv) {
     }
     dealloc(r);
 
-    // 2. String + env stress
+    // String + env stress
     print("[string/env] stress...\n", 25);
 
     char* env = retenv("PATH");
     if (env) {
-        print(env, strlen(env));
-        print("\n", 1);
+        fprint("Environment (PATH): %s\n", env);
+    } else {
+        fprint("No environment PATH\n");
     }
 
     char bigbuf[256];
@@ -61,7 +106,7 @@ int main(int argc, char** argv) {
     strcopy(bigbuf, copy);
     strscopy(copy, bigbuf, 128);
 
-    // 3. File IO chaos test (Works but is really annoying so i closed it)
+    // File IO chaos test (Works but is really annoying so i closed it)
     // print("[io] file stress...\n", 22);
 
     // for (int i = 0; i < FILES; i++) {
@@ -98,7 +143,7 @@ int main(int argc, char** argv) {
     //     sclose(f);
     // }
 
-    // 4. Buffer edge cases
+    // Buffer edge cases
     print("[buffer] edge cases...\n", 25);
 
     char a[16];
@@ -111,7 +156,7 @@ int main(int argc, char** argv) {
         print("movebuf/cmpbuf OK\n", 19);
     }
 
-    // 5. Alignment stress
+    // Alignment stress
     print("[align] tests...\n", 18);
 
     void* p = alloc(64);
@@ -123,7 +168,7 @@ int main(int argc, char** argv) {
 
     dealloc(p);
 
-    // 6. Recursive syscall pressure
+    // Recursive syscall pressure
     print("[syscall] pressure...\n", 23);
 
     for (int i = 0; i < 1000; i++) {
@@ -132,7 +177,7 @@ int main(int argc, char** argv) {
         #endif
     }
 
-    // 7. Intentional misuse (sanity breaker)
+    // Intentional misuse (sanity breaker)
     print("[stress] intentional edge misuse...\n", 38);
 
     char* bad = alloc(1);

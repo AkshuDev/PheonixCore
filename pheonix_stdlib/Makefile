@@ -38,14 +38,25 @@ OUT_LIB := $(OUT_DIR)/lib$(NAME).so
 OUT_PSRT := $(OUT_DIR)/psrt.o
 
 # Colors
-C_RED := $(shell tput -Txterm setaf 1)
-C_GREEN := $(shell tput -Txterm setaf 2)
-C_YELLOW := $(shell tput -Txterm setaf 3)
-C_BLUE := $(shell tput -Txterm setaf 4)
-C_MAGENTA := $(shell tput -Txterm setaf 5)
-C_CYAN := $(shell tput -Txterm setaf 6)
-C_WHITE := $(shell tput -Txterm setaf 7)
-C_RESET := $(shell tput -Txterm sgr0)
+ifeq ($(shell command -v tput >/dev/null 2>&1 && echo yes),yes)
+	C_RED := $(shell tput -Txterm setaf 1)
+	C_GREEN := $(shell tput -Txterm setaf 2)
+	C_YELLOW := $(shell tput -Txterm setaf 3)
+	C_BLUE := $(shell tput -Txterm setaf 4)
+	C_MAGENTA := $(shell tput -Txterm setaf 5)
+	C_CYAN := $(shell tput -Txterm setaf 6)
+	C_WHITE := $(shell tput -Txterm setaf 7)
+	C_RESET := $(shell tput -Txterm sgr0)
+else
+	C_RED := \033[31m
+	C_GREEN := \033[32m
+	C_YELLOW := \033[33m
+	C_BLUE := \033[34m
+	C_MAGENTA := \033[35m
+	C_CYAN := \033[36m
+	C_WHITE := \033[37m
+	C_RESET := \033[0m
+endif
 
 .PHONY: all clean help build_win dirs
 
@@ -63,9 +74,9 @@ $(OUT_PSRT): $(SRCS_PSRT)
 	@printf "$(C_GREEN)==> Assembled $@$(C_RESET)\n"
 
 $(OUT_LIB): $(OBJS) $(OBJS_ASM)
-	@printf "$(C_YELLOW)==> Linking $(OUT_LIB)$(C_RESET)"
+	@printf "$(C_YELLOW)==> Linking $(OUT_LIB)$(C_RESET)\n"
 	@$(CC) $(LDFLAGS) $(OBJS) $(OBJS_ASM) -o $@
-	@printf "$(C_GREEN)==> Linked $(OUT_LIB)$(C_RESET)"
+	@printf "$(C_GREEN)==> Linked $(OUT_LIB)$(C_RESET)\n"
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	@printf "$(C_YELLOW)==> Compiling $< -> $@$(C_RESET)\n"
@@ -107,6 +118,3 @@ help:
 	@echo "  BUILD=debug    Debug symbols, no optimizations (default)"
 	@echo "  BUILD=release  Optimized, no debug symbols"
 	@echo ""
-
-__on_err:
-	@printf "$(C_RED)Makefile: An Error Occured: $? (output)$(C_RESET)\n"
