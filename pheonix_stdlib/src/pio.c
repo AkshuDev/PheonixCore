@@ -1,5 +1,5 @@
 // Pheonix I/O C Source Code
-#define __PSTDLIB_BUILD
+#define __IPSTDLIB_BUILD
 #include <pio.h>
 
 #ifdef _WIN32
@@ -119,10 +119,10 @@ __IFN void __pio_init_streams(void) {
     #endif
 }
 
-__IFN PIO_Stream* sopen_file(const char *path, PStreamFlags flags) {
+__IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
     if (!path) return PNULL;
 
-    PIO_Stream *pio = (PIO_Stream*)zalloc(sizeof(PIO_Stream));
+    PIO_Stream* pio = (PIO_Stream*)zalloc(sizeof(PIO_Stream));
     if (!pio) return PNULL;
 
     #ifdef _WIN32
@@ -130,7 +130,7 @@ __IFN PIO_Stream* sopen_file(const char *path, PStreamFlags flags) {
         if (flags & PSTREAM_FLAG_READ) access |= GENERIC_READ;
         if (flags & PSTREAM_FLAG_WRITE) access |= GENERIC_WRITE;
 
-        HANDLE h = CreateFileA(path, access, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        HANDLE h = CreateFileA(path, access, FILE_SHARE_READ, PNULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, PNULL);
         if (h == INVALID_HANDLE_VALUE) {
             pio->last_err = PIO_ERR_OPEN;
             return pio;
@@ -168,7 +168,7 @@ __IFN PIO_Stream* sopen_file(const char *path, PStreamFlags flags) {
     return pio;
 }
 
-__IFN bool sclose(PIO_Stream *pio) {
+__IFN bool sclose(PIO_Stream* pio) {
     if (!pio) return false;
 
     #ifdef _WIN32
@@ -182,12 +182,12 @@ __IFN bool sclose(PIO_Stream *pio) {
     return true;
 }
 
-__IFN usize_t sread(PIO_Stream *pio, void *buffer, usize_t size) {
+__IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size) {
     if (!pio || !buffer || size == 0) return 0;
 
     #ifdef _WIN32
         DWORD read = 0;
-        if (!ReadFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &read, NULL)) {
+        if (!ReadFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &read, PNULL)) {
             pio->last_err = PIO_ERR_READ;
             return 0;
         }
@@ -202,12 +202,12 @@ __IFN usize_t sread(PIO_Stream *pio, void *buffer, usize_t size) {
     #endif
 }
 
-__IFN usize_t swrite(PIO_Stream *pio, const void *buffer, usize_t size) {
+__IFN usize_t swrite(PIO_Stream* pio, const void* buffer, usize_t size) {
     if (!pio || !buffer || size == 0) return 0;
 
     #ifdef _WIN32
         DWORD written = 0;
-        if (!WriteFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &written, NULL)) {
+        if (!WriteFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &written, PNULL)) {
             pio->last_err = PIO_ERR_WRITE;
             return 0;
         }
@@ -222,7 +222,7 @@ __IFN usize_t swrite(PIO_Stream *pio, const void *buffer, usize_t size) {
     #endif
 }
 
-__IFN bool sseek(PIO_Stream *pio, long offset, int origin) {
+__IFN bool sseek(PIO_Stream* pio, long offset, int origin) {
     if (!pio) return false;
 
     #ifdef _WIN32
@@ -243,7 +243,7 @@ __IFN bool sseek(PIO_Stream *pio, long offset, int origin) {
     #endif
 }
 
-__IFN ulen_t stell(PIO_Stream *pio) {
+__IFN ulen_t stell(PIO_Stream* pio) {
     if (!pio) return (ulen_t)-1;
     #ifdef _WIN32
         LARGE_INTEGER pos;
@@ -260,7 +260,7 @@ __IFN ulen_t stell(PIO_Stream *pio) {
     #endif
 }
 
-__IFN bool seof(PIO_Stream *pio) {
+__IFN bool seof(PIO_Stream* pio) {
     if (!pio) return true;
     ulen_t cur = stell(pio);
     #ifdef _WIN32
@@ -275,11 +275,13 @@ __IFN bool seof(PIO_Stream *pio) {
     #endif
 }
 
-__IFN bool sflush(PIO_Stream *pio) {
-
+__IFN bool sflush(PIO_Stream* pio) {
+	// TODO: Implement
+	(void)pio;
+	return true;
 }
 
-__IFN PIO_Errors slast_err(PIO_Stream *pio) {
+__IFN PIO_Errors slast_err(PIO_Stream* pio) {
     if (!pio) return PIO_ERR_UNK;
     return pio->last_err;
 }
@@ -299,13 +301,13 @@ __IFN const char* get_lasterr_msg(void) {
     }
 }
 
-__IFN int print(const char *str, usize_t size) {
-    if (str == PNULL) return -1;
+__IFN int print(const char* str, usize_t size) {
+    if (!str) return -1;
     #ifdef _WIN32
         if (PStdoutStream->stream.handle == INVALID_HANDLE_VALUE)
             return -2;
         int chars_written;
-        WriteConsole(PStdoutStream->stream.handle, str, size, &chars_written, NULL);
+        WriteConsole(PStdoutStream->stream.handle, str, size, &chars_written, PNULL);
         return chars_written;
     #else
         swrite(PStdoutStream, str, size);
@@ -313,7 +315,7 @@ __IFN int print(const char *str, usize_t size) {
     return -4;
 }
 
-__IFN int vfprints(PIO_Stream *pio, const char *format, va_list ap) {
+__IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
     if (!pio || !format) return -1;
 
     char* s = 0;
@@ -646,7 +648,7 @@ __IFN int vfprints(PIO_Stream *pio, const char *format, va_list ap) {
     return written;
 }
 
-__IFN int fprints(PIO_Stream *pio, const char *format, ...) {
+__IFN int fprints(PIO_Stream* pio, const char* format, ...) {
     va_list ap;
     start_va(ap, format);
     int ret = vfprints(pio, format, ap);
@@ -655,8 +657,6 @@ __IFN int fprints(PIO_Stream *pio, const char *format, ...) {
 }
 
 __IFN int perror(const char* format, ...) {
-    char* error_str = "No Error";
-
     va_list ap;
     start_va(ap, format);
     int ret = vfprints(s_stderr, format, ap);

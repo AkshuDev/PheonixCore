@@ -115,127 +115,14 @@ __IFN llong_t __plib_syscall(int id, ...) {
 __IFN void __plib_reset_env(char** envp, usize_t envp_count) {
     env_vars = alloc(envp_count);
     if (env_vars) {
-        copybuf(envp, env_vars, sizeof(char*) * envp_count);
+        copybuf(env_vars, envp, sizeof(char*) * envp_count);
     }
 }
 
-__IFN bool copybuf(void* source, void* dest, usize_t size) {
-    if (size == 0)
-        return true;
-    else if (source == PNULL || dest == PNULL)
-        return false;
-
-    byte_t* dst = (byte_t*)dest;
-    byte_t* src = (byte_t*)source;
-
-    if (size < 32) {
-        for (usize_t i = 0; i < size; i++)
-            dst[i] = src[i];
-        return true;
-    }
-
-    uptr_t p = ((uptr_t)dst) & (sizeof(u64) - 1);
-    usize_t i = 0;
-    if (p) {
-        uptr_t to_align = (sizeof(u64) - p) & (sizeof(u64) - 1);
-        if (to_align > size)
-            to_align = size;
-        for (; i < to_align; i++)
-            dst[i] = src[i];
-    }
-
-    usize_t remain = size - i;
-    if (remain >= sizeof(u64)) {
-        u64* wd = (u64*)(dst + i);
-        u64* ws = (u64*)(src + i);
-        usize_t words = remain / sizeof(u64);
-        while (words >= 4) {
-            wd[0] = ws[0];
-            wd[1] = ws[1];
-            wd[2] = ws[2];
-            wd[3] = ws[3];
-            ws += 4;
-            wd += 4;
-            words -= 4;
-        }
-        while (words--) {
-            *wd++ = *ws++;
-        }
-        i += ((size - i) / sizeof(u64)) * sizeof(u64);
-    }
-
-    for (; i < size; i++)
-        dst[i] = src[i];
-    return true;
-}
-
-__IFN bool fillbuf(void* buf, byte_t value, usize_t size) {
-    if (size == 0)
-        return true;
-    else if (buf == PNULL)
-        return false;
-
-    byte_t* dest = (byte_t*)buf;
-
-    if (size < 32) {
-        for (usize_t i = 0; i < size; i++)
-            dest[i] = value;
-        return true;
-    }
-
-    uptr_t p = ((uptr_t)dest) & (sizeof(u64) - 1);
-    usize_t i = 0;
-    if (p) {
-        uptr_t to_align = (sizeof(u64) - p) & (sizeof(u64) - 1);
-        if (to_align > size)
-            to_align = size;
-        for (; i < to_align; i++)
-            dest[i] = value;
-    }
-
-    usize_t remain = size - i;
-    if (remain >= sizeof(u64)) {
-        u64 pat = (u64)value * (u64)0x0101010101010101ULL;
-        u64* wd = (u64*)(dest + i);
-        usize_t words = remain / sizeof(u64);
-        while (words >= 4) {
-            wd[0] = pat;
-            wd[1] = pat;
-            wd[2] = pat;
-            wd[3] = pat;
-            wd += 4;
-            words -= 4;
-        }
-        while (words--) {
-            *wd++ = pat;
-        }
-        i += ((size - i) / sizeof(u64)) * sizeof(u64);
-    }
-
-    for (; i < size; i++)
-        dest[i] = value;
-    return true;
-}
-
-__IFN bool movebuf(void* source, void* dest, usize_t size) {
-    if (!copybuf(source, dest, size))
-        return false;
-    return fillbuf(source, 0, size);
-}
-
-__IFN bool cmpbuf(void* a, void* b, usize_t size) {
-    byte_t* x = a;
-    byte_t* y = b;
-
-    for (usize_t i = 0; i < size; i++)
-        if (x[i] != y[i])
-            return false;
-
-    return true;
-}
-
-__IFN uoff_t findbyte(void* search_area, byte_t byte, usize_t size) {
+__IFN uoff_t findbyte(const void* search_area, byte_t byte, usize_t size) {
     // Not Yet implemented
+	(void)search_area; (void)byte; (void)size;
+	return 0;
 }
 
 __IFN void* exalloc(usize_t size, uint_t type, void* link, bool auto_free) {
@@ -274,11 +161,13 @@ __IFN void* exalloc(usize_t size, uint_t type, void* link, bool auto_free) {
             prot = PAGE_NOACCESS;
 
         ptr = VirtualAlloc(PNULL, size + sizeof(struct PHM_Hdr), MEM_COMMIT | MEM_RESERVE, prot);
+	#elif defined(__AOS__)
+		ptr = PNULL; // Not yet implemented
     #else
         ptr = PNULL;
     #endif
     
-    if (ptr == PNULL) return PNULL;
+    if (!ptr) return PNULL;
 
     struct PHM_Hdr* hdr = (struct PHM_Hdr*)ptr;
     hdr->size = size;
@@ -300,13 +189,13 @@ __IFN void* exalloc(usize_t size, uint_t type, void* link, bool auto_free) {
                 
                 void* nptr = exalloc(newcap * sizeof(void*), __MEMTYPE_READ__ | __MEMTYPE_WRITE__, PNULL, false);
                 if (!nptr) return rptr; // Cant auto free this
-                copybuf(exalloc_ptrs, nptr, sizeof(void*) * exalloc_capacity);
+                copybuf(nptr, exalloc_ptrs, sizeof(void*) * exalloc_capacity);
                 dealloc(exalloc_ptrs);
                 exalloc_ptrs = nptr;
 
                 nptr = exalloc(newcap * sizeof(usize_t), __MEMTYPE_READ__ | __MEMTYPE_WRITE__, PNULL, false);
                 if (!nptr) return rptr;
-                copybuf(exalloc_free_stack, nptr, sizeof(usize_t) * exalloc_capacity);
+                copybuf(nptr, exalloc_free_stack, sizeof(usize_t) * exalloc_capacity);
                 dealloc(exalloc_free_stack);
                 exalloc_free_stack = nptr;
 
@@ -329,15 +218,11 @@ __IFN void* alloc(usize_t size) {
 }
 
 __IFN bool dealloc(void* ptr) {
-    if (ptr == PNULL)
-        return false;
+    if (!ptr) return false;
     struct PHM_Hdr* hdr = (struct PHM_Hdr*)((u8*)ptr - sizeof(struct PHM_Hdr));
 
-    if (hdr->next && hdr->next_count > 0)
-        dealloc(hdr->next);
-
-    if (!(hdr->flags & __PHM_HDR_FLAG_ALLOCATED__))
-        return false; // DeAllocated Probably
+    if (hdr->next && hdr->next_count > 0) dealloc(hdr->next);
+    if (!(hdr->flags & __PHM_HDR_FLAG_ALLOCATED__)) return false; // DeAllocated Probably
 
     if (hdr->flags & __PHM_HDR_FLAG_AUTO_FREE__) {
         // Add a free slot
@@ -363,8 +248,7 @@ __IFN bool dealloc(void* ptr) {
 
 __IFN void* zalloc(usize_t size) {
     void* ptr = exalloc(size, __MEMTYPE_READ__ | __MEMTYPE_WRITE__, PNULL, true);
-    if (ptr == PNULL)
-        return ptr;
+    if (!ptr) return ptr;
     if (!fillbuf(ptr, 0, size)) {
         dealloc(ptr);
         return PNULL;
@@ -374,12 +258,12 @@ __IFN void* zalloc(usize_t size) {
 
 __IFN void* ralloc(void* ptr, usize_t size) {
     void* nptr = exalloc(size, __MEMTYPE_WRITE__ | __MEMTYPE_READ__, NULL, true);
-    if (nptr == PNULL) {
+    if (!nptr) {
         return PNULL;
     }
     struct PHM_Hdr* hdr = (struct PHM_Hdr*)((u8*)ptr - sizeof(struct PHM_Hdr));
     if (!(hdr->flags & __PHM_HDR_FLAG_ALLOCATED__)) return PNULL; // Cant reallocate
-    copybuf(ptr, nptr, hdr->size);
+    copybuf(nptr, ptr, hdr->size);
 
     dealloc(ptr);
     return nptr;
@@ -387,7 +271,7 @@ __IFN void* ralloc(void* ptr, usize_t size) {
 
 __IFN void* rzalloc(void* ptr, usize_t size) {
     void* nptr = exalloc(size, __MEMTYPE_READ__ | __MEMTYPE_WRITE__, ptr, true);
-    if (nptr == PNULL) {
+    if (!nptr) {
         return PNULL;
     }
     if (!fillbuf(nptr, 0, size)) {
@@ -397,7 +281,7 @@ __IFN void* rzalloc(void* ptr, usize_t size) {
 
     struct PHM_Hdr* hdr = (struct PHM_Hdr*)((u8*)ptr - sizeof(struct PHM_Hdr));
     if (!(hdr->flags & __PHM_HDR_FLAG_ALLOCATED__)) return PNULL; // Cant reallocate
-    copybuf(ptr, nptr, hdr->size);
+    copybuf(nptr, ptr, hdr->size);
 
     dealloc(ptr);
     return nptr;
@@ -424,43 +308,47 @@ __IFN usize_t aligndown(usize_t val, usize_t alignment) {
     return val & ~(alignment - 1);
 }
 
-__IFN usize_t strlen(const char* str) {
-    const char* s = str;
-    while (*s) s++;
-    return s - str;
+__IFN bool strcopy(char* dest, const char* src) {
+	if (!dest || !src) return false;
+
+	usize_t n1 = strlen(src) + 1; // +NULL Terminator
+	usize_t n2 = strlen(dest) + 1; // +NULL Terminator
+    return copybuf(dest, src, min(n1, n2));
 }
 
-__IFN bool strcopy(const char* src, char* dest) {
-    return copybuf((void*)src, (void*)dest, strlen(src) + 1);
+__IFN bool strscopy(char* dest, const char* src, usize_t size) {
+	if (!dest || !src) return false;
+	if (size == 0) return true;
+
+    usize_t n1 = strlen(src) + 1; // +NULL Terminator
+	usize_t n2 = strlen(dest) + 1; // +NULL Terminator
+    return copybuf(dest, src, min(min(n1, n2), size));
 }
 
-__IFN bool strscopy(const char* src, char* dest, usize_t size) {
-    return copybuf((void*)src, (void*)dest, size);
-}
+__IFN bool strcmp(const char* a, const char* b) {
+	if (!a || !b) return false;
 
-__IFN bool strcmp(char* a, char* b) {
     usize_t n1 = strlen(a);
     usize_t n2 = strlen(b);
-    usize_t n = n1 > n2 ? n2 : n1;
-
-    return cmpbuf(a, b, n);
+    return cmpbuf(a, b, min(n1, n2));
 }
 
-__IFN bool strncmp(char* a, char* b, usize_t size) {
+__IFN bool strncmp(const char* a, const char* b, usize_t size) {
+	if (!a || !b) return false;
+	if (size == 0) return true;
+
     usize_t n1 = strlen(a);
     usize_t n2 = strlen(b);
-    usize_t fallback_n = n1 > n2 ? n2 : n1;
-
-    usize_t n = size > fallback_n ? fallback_n : size;
-
-    return cmpbuf(a, b, n);
+    return cmpbuf(a, b, min(min(n1, n2), size));
 }
 
-__IFN char* strfindc(char* str, char c, usize_t occurance) {
+__IFN const char* strfindc(const char* str, char c, usize_t occurance) {
+	if (!str) return PNULL;
+
     usize_t n = strlen(str);
     usize_t coccur = 0;
 
-    char* cstr = str;
+    const char* cstr = str;
 
     for (usize_t i = 0; i < n; i++) {
         cstr = (char*)(str + i);
@@ -474,11 +362,13 @@ __IFN char* strfindc(char* str, char c, usize_t occurance) {
     return PNULL;
 }
 
-__IFN char* strsplit(char* str, char c, usize_t occurance, bool first_part) {
+__IFN char* strsplit(const char* str, char c, usize_t occurance, bool first_part) {
+	if (!str) return PNULL;
+
     usize_t n = strlen(str);
     usize_t coccur = 0;
 
-    char* cstr = str;
+    const char* cstr = str;
 
     for (usize_t i = 0; i < n; i++) {
         cstr = (char*)(str + i);
@@ -489,10 +379,9 @@ __IFN char* strsplit(char* str, char c, usize_t occurance, bool first_part) {
                 if (s == 0) return PNULL;
                 char* split = alloc(s);
                 if (!split) return PNULL;
-                if (first_part)
-                    strscopy(cstr, split, s);
-                else
-                    strscopy(str, split, s);
+
+                if (first_part) strscopy(split, cstr, s);
+                else strscopy(split, str, s);
                 return split;
             }
         }
@@ -536,9 +425,9 @@ __IFN bool setenv(const char* name, const char* val, bool overwrite) {
             if (!ne) return false;
 
             // build "name=value"
-            copybuf((void*)name, ne, nlen);
+            copybuf(ne, name, nlen);
             ne[nlen] = '=';
-            copybuf((void*)val, ne + nlen + 1, vlen);
+            copybuf(ne + nlen + 1, val, vlen);
             ne[len - 1] = '\0';
 
             env_vars[i] = ne;
@@ -556,9 +445,9 @@ __IFN bool setenv(const char* name, const char* val, bool overwrite) {
     char* ne = alloc(len);
     if (!ne) return false;
 
-    copybuf((void*)name, ne, nlen);
+    copybuf(ne, name, nlen);
     ne[nlen] = '=';
-    copybuf((void*)val, ne + nlen + 1, vlen);
+    copybuf(ne + nlen + 1, val, vlen);
     ne[len - 1] = '\0';
 
     env_vars[env_count++] = ne;
@@ -782,28 +671,28 @@ __IFN bool c_is_alphanum(char c) {
     return c_is_alpha(c) || c_is_digit(c);
 }
 
-__IFN bool is_alpha(char* s) {
-    for (char* p = s; *p; p++) {
+__IFN bool is_alpha(const char* s) {
+    for (const char* p = s; *p; p++) {
         if (!c_is_alpha(*p)) return false;
     }
     return true;
 }
 
-__IFN bool is_digit(char* s) {
-    for (char* p = s; *p; p++) {
+__IFN bool is_digit(const char* s) {
+    for (const char* p = s; *p; p++) {
         if (!c_is_digit(*p)) return false;
     }
     return true;
 }
 
-__IFN bool is_alphanum(char* s) {
-    for (char* p = s; *p; p++) {
+__IFN bool is_alphanum(const char* s) {
+    for (const char* p = s; *p; p++) {
         if (!c_is_alphanum(*p)) return false;
     }
     return true;
 }
 
-__IFN bool is_float(char* s) {
+__IFN bool is_float(const char* s) {
     if (!s || !*s) return 0;
 
     bool has_digit = false;
@@ -840,10 +729,10 @@ __IFN i64 append_i64(i64 a, i64 b) {
 }
 
 __IFN bool aexitf(void (*func)(void)) {
-    if (func == NULL) return false;
+    if (!func) return false;
 
     struct PEHdlr* new_handler = (struct PEHdlr*)alloc(sizeof(struct PEHdlr));
-    if (new_handler == NULL) return false;
+    if (!new_handler) return false;
 
     new_handler->func = func;
     new_handler->next = exit_handlers;
@@ -856,7 +745,7 @@ __IFN __attribute__((noreturn)) void exit(int status) {
     // Cleanup
     // Exit Functions
     struct PEHdlr* curef = exit_handlers;
-    while (curef != NULL) {
+    while (curef) {
         curef->func();
         struct PEHdlr* temp = curef;
         curef = curef->next;

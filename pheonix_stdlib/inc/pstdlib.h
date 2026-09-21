@@ -97,17 +97,35 @@ typedef unsigned short ushort_t; // Unsigned Short
 typedef unsigned long ulong_t; // Unsigned Long
 typedef unsigned long long ullong_t; // Unsigned Long Long
 
-typedef unsigned long uptr_t; // Unsigned Pointer
-typedef long ptr_t; // Signed Pointer
+#if defined(_WIN64)
+	// 64-bit (long long)
+
+    typedef unsigned long long uptr_t; // Unsigned Pointer
+    typedef long long ptr_t; // Signed Pointer
+    typedef unsigned long long usize_t; // Unsigned Size
+    typedef long long psize_t; // Signed Size
+#elif defined(__LP64__)
+	// 64-bit
+
+    typedef unsigned long uptr_t; // Unsigned Pointer
+    typedef long ptr_t; // Signed Pointer
+    typedef unsigned long usize_t; // Unsigned Size
+    typedef long psize_t; // Signed Size
+#else
+	// 32-bit
+
+    typedef unsigned int uptr_t; // Unsigned Pointer
+    typedef int ptr_t; // Signed Pointer
+    typedef unsigned int usize_t; // Unsigned Size
+    typedef int psize_t; // Signed Size
+#endif
 
 typedef long long len_t; // Signed Length
-typedef long psize_t; // Signed Size
 typedef unsigned long long ulen_t; // Unsigned Length
-typedef unsigned long usize_t; // Unsigned Size
 typedef unsigned long long upos_t; // Unsigned Position
 
-typedef unsigned char *uoff_t; // Unsigned Byte Pointer
-typedef char *poff_t; // Byte Pointer
+typedef unsigned char* uoff_t; // Unsigned Byte Pointer
+typedef char* poff_t; // Byte Pointer
 
 typedef unsigned char flag_t; // 1 = True / 0 = False (Just an example can be used for any type of flag)
 
@@ -157,7 +175,7 @@ typedef struct PStream {
     uoff_t filepos; // Current Logical File Position corresponding to the buffer
     ulen_t len; // Length
     PStreamFlags flags; // Flags
-    u8 *buf; // Internal buffer
+    u8* buf; // Internal buffer
     int md_err; // Meta Data: Stores Last Error
 } PStream;
 
@@ -169,7 +187,7 @@ struct PHM_Hdr {
     usize_t size; // Size of allocation
     u32 flags; // 32-bit Flags
     usize_t auto_free_idx; // Auto free idx (if auto_free == true)
-    struct PHM_Hdr *next; // Next linked allocation
+    struct PHM_Hdr* next; // Next linked allocation
     usize_t next_count; // Number of linked allocations
 };
 
@@ -193,25 +211,29 @@ struct PEHdlr {
 #endif
 
 // Limits
-#define INT64_MAX 0x7FFFFFFFFFFFFFFF
-#define INT64_MIN 0x8000000000000000
-#define INT32_MAX 0x7FFFFFFF
-#define INT32_MIN 0x80000000
-#define INT16_MAX 0x7FFF
-#define INT16_MIN 0x8000
-#define INT8_MAX 0x7F
-#define INT8_MIN 0x80
+#define INT64_MAX 0x7FFFFFFFFFFFFFFFLL
+#define INT64_MIN 0x8000000000000000LL
+#define INT32_MAX 0x7FFFFFFFLL
+#define INT32_MIN 0x80000000LL
+#define INT16_MAX 0x7FFFLL
+#define INT16_MIN 0x8000LL
+#define INT8_MAX 0x7FLL
+#define INT8_MIN 0x80LL
 
 #define INT_MAX INT32_MAX
 #define INT_MIN INT32_MIN
 
-#define UINT64_MAX 0xFFFFFFFFFFFFFFFF
-#define UINT32_MAX 0xFFFFFFFF
-#define UINT16_MAX 0xFFFF
-#define UINT8_MAX 0xFF
+#define UINT64_MAX 0xFFFFFFFFFFFFFFFFULL
+#define UINT32_MAX 0xFFFFFFFFULL
+#define UINT16_MAX 0xFFFFULL
+#define UINT8_MAX 0xFFULL
 
 #define UINT_MAX UINT32_MAX
 #define UINT_MIN UINT32_MIN
+
+// Quick Maths
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 /*
 Do a System Call
@@ -232,38 +254,34 @@ __IFN void __plib_reset_env(char** envp, usize_t envp_count);
 /* Copy Buffer -
 Copy Memory from one place to another with specified size
 */
-__IFN bool copybuf(void *source, void *dest, usize_t size);
+__IFN bool copybuf(void* dest, const void* source, usize_t size);
 
 /* Fill Buffer -
 Fills Memory of specified size with the specified value
 */
-__IFN bool fillbuf(void *buf, byte_t value, usize_t size);
+__IFN bool fillbuf(void* buf, byte_t value, usize_t size);
 
 /* Move Buffer -
 Move Memory of specified size from one place to another
 */
-__IFN bool movebuf(void *source, void *dest, usize_t size); 
+__IFN bool movebuf(void* dest, const void* source, usize_t size); 
 
 /* Compare Buffer -
-Compare two blocks of Memory of the specified size
-
-Returns:
-1. false -> Not Same
-2. true -> Same
+Compare two blocks of Memory of the specified size, and returns the byte difference of the first differing byte, and smallest int value incase of error
 */
-__IFN bool cmpbuf(void *a, void *b, usize_t size);
+__IFN int cmpbuf(const void* a, const void* b, usize_t size);
 
 /* Find Byte -
 Finds the specified byte in a block of Memory of the specified size, returns the
 location.
 */
-__IFN uoff_t findbyte(void *search_area, byte_t byte, usize_t size);
+__IFN uoff_t findbyte(const void* search_area, byte_t byte, usize_t size);
 
 /*
 Extended Memory Alloc :
 Allocate Memory on the Heap, Can provide type of memory, such as Exec
 */
-__IFN void *exalloc(usize_t size, uint_t type, void *link, bool auto_free); 
+__IFN void* exalloc(usize_t size, uint_t type, void* link, bool auto_free); 
 
 /*
 Memory Alloc -
@@ -286,13 +304,13 @@ __IFN void* zalloc(usize_t size);
 Re Memory Allocation -
 Reallocate Memory on the heap with type Read/Write
 */
-__IFN void *ralloc(void *ptr, usize_t size);
+__IFN void* ralloc(void* ptr, usize_t size);
 
 /*
 Zeroed Re Memory Allocation -
 Reallocate Zeroed Memory on the heap with type Read/Write
 */
-__IFN void *rzalloc(void *ptr, usize_t size);
+__IFN void* rzalloc(void* ptr, usize_t size);
 
 /*
 Align Pointer: Aligns a pointer 
@@ -329,13 +347,13 @@ __IFN usize_t strlen(const char* str);
 String Copy -
 Copy a string from one place to another
 */
-__IFN bool strcopy(const char* src, char* dest);
+__IFN bool strcopy(char* dest, const char* src);
 
 /*
 String Size Copy -
 Copy a string of the specified size from one place to another
 */
-__IFN bool strscopy(const char* src, char* dest, usize_t size);
+__IFN bool strscopy(char* dest, const char* src, usize_t size);
 
 /*
 String Compare -
@@ -345,7 +363,7 @@ Returns:
 1. true = Equal
 2. false = Not Equal
 */
-__IFN bool strcmp(char* a, char* b);
+__IFN bool strcmp(const char* a, const char* b);
 
 /*
 String Size Compare -
@@ -355,19 +373,19 @@ Returns:
 1. true = Equal
 2. false = Not Equal
 */
-__IFN bool strncmp(char* a, char* b, usize_t size);
+__IFN bool strncmp(const char* a, const char* b, usize_t size);
 
 /*
 String Find Character  -
 Find the specified occurance of the provided character and return the part of the string with that character and after it
 */
-__IFN char* strfindc(char* str, char c, usize_t occurance);
+__IFN const char* strfindc(const char* str, char c, usize_t occurance);
 
 /*
 String Split -
 Find the specified occurance of the provided character and return a new string of either the part before or after the character
 */
-__IFN char* strsplit(char* str, char c, usize_t occurance, bool first_part);
+__IFN char* strsplit(const char* str, char c, usize_t occurance, bool first_part);
 
 /*
 Retrieve Environment -
@@ -577,25 +595,25 @@ __IFN bool c_is_alphanum(char c);
 is_alpha: String is Alphabetical
 Returns true if string is Alphabetical else false
 */
-__IFN bool is_alpha(char* s);
+__IFN bool is_alpha(const char* s);
 
 /*
 is_digit: String is Numeric
 Returns true if string is a representation of a number else false
 */
-__IFN bool is_digit(char* s);
+__IFN bool is_digit(const char* s);
 
 /*
 is_alphanum: String is Alphanumeric
 Returns true if string is Alphanumeric else false
 */
-__IFN bool is_alphanum(char* s);
+__IFN bool is_alphanum(const char* s);
 
 /*
 is_float: String is float
 Returns true if string is a representation of float else false
 */
-__IFN bool is_float(char* s);
+__IFN bool is_float(const char* s);
 
 /*
 Append Int 64

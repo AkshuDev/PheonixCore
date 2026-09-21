@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     "Double Test: %l.9f (Ans: 0.123456789)\n",
         "Works",
         "Works",
-        NULL,
+        PNULL,
         'h',
         42, 42,
         42,
@@ -103,8 +103,8 @@ int main(int argc, char** argv) {
     bigbuf[255] = '\0';
 
     char copy[256];
-    strcopy(bigbuf, copy);
-    strscopy(copy, bigbuf, 128);
+    strcopy(copy, bigbuf);
+    strscopy(bigbuf, copy, 128);
 
     // File IO chaos test (Works but is really annoying so i closed it)
     // print("[io] file stress...\n", 22);
@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
     char b[16];
 
     fillbuf(a, 0xAA, 16);
-    movebuf(a, b, 16);
+    movebuf(b, a, 16);
 
     if (cmpbuf(a, b, 16)) {
         print("movebuf/cmpbuf OK\n", 19);

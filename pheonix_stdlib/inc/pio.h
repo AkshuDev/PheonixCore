@@ -58,28 +58,28 @@ Opens a file at the given path with specified PStreamFlags
 (Read, Write, etc.). Returns a pointer to a PIO_Stream,
 or NULL if opening fails.
 */
-__IFN PIO_Stream* sopen_file(const char *path, PStreamFlags flags);
+__IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags);
 
 /*
 sclose - Stream Close
 Closes the provided PIO_Stream and releases any allocated
 resources. Returns true on success, false on failure.
 */
-__IFN bool sclose(PIO_Stream *pio);
+__IFN bool sclose(PIO_Stream* pio);
 
 /*
 sread - Stream Read
 Reads `size` bytes from the PIO_Stream into the given buffer.
 Returns the number of bytes successfully read.
 */
-__IFN usize_t sread(PIO_Stream *pio, void *buffer, usize_t size);
+__IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size);
 
 /*
 swrite - Stream Write
 Writes `size` bytes from the buffer to the PIO_Stream.
 Returns the number of bytes successfully written.
 */
-__IFN usize_t swrite(PIO_Stream *pio, const void *buffer, usize_t size);
+__IFN usize_t swrite(PIO_Stream* pio, const void* buffer, usize_t size);
 
 /*
 sseek - Stream Seek
@@ -87,14 +87,14 @@ Moves the internal file pointer of the PIO_Stream based on
 offset and origin (SEEK_SET, SEEK_CUR, SEEK_END). Returns
 true on success, false on failure.
 */
-__IFN bool sseek(PIO_Stream *pio, long offset, int origin);
+__IFN bool sseek(PIO_Stream* pio, long offset, int origin);
 
 /*
 stell - Stream Tell
 Returns the current position of the internal file pointer
 within the PIO_Stream.
 */
-__IFN ulen_t stell(PIO_Stream *pio);
+__IFN ulen_t stell(PIO_Stream* pio);
 
 /*
 get_lasterr_msg: Get Last Error Message
@@ -109,14 +109,14 @@ the number of characters written or a negative value on error.
 
 Requires Variadic Argument List
 */
-__IFN int vfprints(PIO_Stream *pio, const char *format, va_list ap);
+__IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap);
 
 /*
 fprints - Formatted Print to Stream
 Writes a formatted string to the specified PIO_Stream. Returns
 the number of characters written or a negative value on error.
 */
-__IFN int fprints(PIO_Stream *pio, const char *format, ...);
+__IFN int fprints(PIO_Stream* pio, const char* format, ...);
 
 /*
 print - Formatted Print
@@ -130,7 +130,7 @@ print - Formatted Print to Standard Output
 Writes a formatted string to stdout. Returns the number of
 characters written or a negative value on error.
 */
-__IFN int print(const char *str, usize_t size);
+__IFN int print(const char* str, usize_t size);
 
 /*
 perror - Formatted Print to Standard Error
@@ -144,21 +144,21 @@ seof - Stream End-of-File
 Checks if the PIO_Stream has reached EOF. Returns true if
 EOF is reached, false otherwise.
 */
-__IFN bool seof(PIO_Stream *pio);
+__IFN bool seof(PIO_Stream* pio);
 
 /*
 sflush - Stream Flush
 Flushes any buffered data in the PIO_Stream to the
 underlying storage. Returns true on success.
 */
-__IFN bool sflush(PIO_Stream *pio);
+__IFN bool sflush(PIO_Stream* pio);
 
 /*
 slast_err - Stream Last Error
 Retrieves the last error encountered by the PIO_Stream.
 Returns a PIO_Errors value.
 */
-__IFN PIO_Errors slast_err(PIO_Stream *pio);
+__IFN PIO_Errors slast_err(PIO_Stream* pio);
 
 #ifdef __cplusplus
 }

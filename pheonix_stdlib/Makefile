@@ -16,13 +16,23 @@ BUILD ?= debug
 # Compiler
 CC := gcc
 
-CFLAGS_BASE := -nostdlib -fno-stack-protector -ffreestanding -I$(INC_DIR) -fPIC
+CFLAGS_BASE := -nostdlib -fno-stack-protector -ffreestanding -I$(INC_DIR) -fPIC -Wall -Wextra
 LDFLAGS := -shared -fPIC
 
 ifeq ($(BUILD),release)
-	CFLAGS := $(CFLAGS_BASE) -O2 -DNDEBUG
+	CFLAGS := $(CFLAGS_BASE) -O3 -ffast-math -DNDEBUG
 else
 	CFLAGS := $(CFLAGS_BASE) -g -O0 -DDEBUG
+endif
+
+# Architecture Optimised Directory
+ARCH_DIR := $(SRC_DIR)/arch/$(ARCH)
+UNIVERSAL_ARCH_DIR := $(SRC_DIR)/arch/universal
+
+ifneq ($(wildcard $(ARCH_DIR)/.),)
+	ARCH_SRC_DIR := $(ARCH_DIR)
+else
+	ARCH_SRC_DIR := $(UNIVERSAL_ARCH_DIR)
 endif
 
 # Sources / Objects
@@ -30,6 +40,8 @@ SRCS := $(wildcard $(SRC_DIR)/*.c)
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 SRCS_ASM := $(filter-out $(SRC_DIR)/asm/$(ARCH)/$(OS)/psrt.S,$(wildcard $(SRC_DIR)/asm/$(ARCH)/$(OS)/*.S))
 OBJS_ASM := $(patsubst $(SRC_DIR)/asm/$(ARCH)/$(OS)/%.S,$(BUILD_DIR)/asm/$(ARCH)/$(OS)/%.o,$(SRCS_ASM))
+ARCH_SRCS := $(wildcard $(ARCH_SRC_DIR)/*.c)
+ARCH_OBJS := $(patsubst $(ARCH_SRC_DIR)/%.c,$(BUILD_DIR)/arch/$(ARCH)/%.o,$(ARCH_SRCS))
 SRCS_PSRT := $(SRC_DIR)/asm/$(ARCH)/$(OS)/psrt.S
 
 # Output
@@ -67,18 +79,24 @@ dirs:
 	@mkdir -p $(BUILD_DIR)
 	@mkdir -p $(OUT_DIR)
 	@mkdir -p $(BUILD_DIR)/asm $(BUILD_DIR)/asm/$(ARCH) $(BUILD_DIR)/asm/$(ARCH)/$(OS)
+	@mkdir -p $(BUILD_DIR)/arch $(BUILD_DIR)/arch/$(ARCH)
 
 $(OUT_PSRT): $(SRCS_PSRT)
 	@printf "$(C_YELLOW)==> Assembling $< -> $@$(C_RESET)\n"
 	@$(CC) $(CFLAGS) -c $< -o $@
 	@printf "$(C_GREEN)==> Assembled $@$(C_RESET)\n"
 
-$(OUT_LIB): $(OBJS) $(OBJS_ASM)
+$(OUT_LIB): $(OBJS) $(ARCH_OBJS) $(OBJS_ASM)
 	@printf "$(C_YELLOW)==> Linking $(OUT_LIB)$(C_RESET)\n"
-	@$(CC) $(LDFLAGS) $(OBJS) $(OBJS_ASM) -o $@
+	@$(CC) $(LDFLAGS) $(OBJS) $(ARCH_OBJS) $(OBJS_ASM) -o $@
 	@printf "$(C_GREEN)==> Linked $(OUT_LIB)$(C_RESET)\n"
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@printf "$(C_YELLOW)==> Compiling $< -> $@$(C_RESET)\n"
+	@$(CC) $(CFLAGS) -c $< -o $@
+	@printf "$(C_GREEN)==> Compiled $@$(C_RESET)\n"
+
+$(BUILD_DIR)/arch/$(ARCH)/%.o: $(ARCH_SRC_DIR)/%.c
 	@printf "$(C_YELLOW)==> Compiling $< -> $@$(C_RESET)\n"
 	@$(CC) $(CFLAGS) -c $< -o $@
 	@printf "$(C_GREEN)==> Compiled $@$(C_RESET)\n"
