@@ -376,21 +376,17 @@ __IFN bool strscopy(char* dest, const char* src, usize_t size);
 String Compare -
 Compare a string with another string
 
-Returns:
-1. true = Equal
-2. false = Not Equal
+Returns the byte difference of the first differing byte
 */
-__IFN bool strcmp(const char* a, const char* b);
+__IFN int strcmp(const char* a, const char* b);
 
 /*
 String Size Compare -
 Compare specified bytes of a string with another string
 
-Returns:
-1. true = Equal
-2. false = Not Equal
+Returns the byte difference of the first differing byte
 */
-__IFN bool strncmp(const char* a, const char* b, usize_t size);
+__IFN int strncmp(const char* a, const char* b, usize_t size);
 
 /*
 String Find Character  -

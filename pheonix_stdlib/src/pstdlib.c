@@ -325,7 +325,7 @@ __IFN bool strscopy(char* dest, const char* src, usize_t size) {
     return copybuf(dest, src, min(min(n1, n2), size));
 }
 
-__IFN bool strcmp(const char* a, const char* b) {
+__IFN int strcmp(const char* a, const char* b) {
 	if (!a || !b) return false;
 
     usize_t n1 = strlen(a);
@@ -333,7 +333,7 @@ __IFN bool strcmp(const char* a, const char* b) {
     return cmpbuf(a, b, min(n1, n2));
 }
 
-__IFN bool strncmp(const char* a, const char* b, usize_t size) {
+__IFN int strncmp(const char* a, const char* b, usize_t size) {
 	if (!a || !b) return false;
 	if (size == 0) return true;
 
