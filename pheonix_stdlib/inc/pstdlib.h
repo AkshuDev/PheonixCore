@@ -118,13 +118,13 @@ typedef unsigned short ushort_t; // Unsigned Short
 typedef unsigned long ulong_t; // Unsigned Long
 typedef unsigned long long ullong_t; // Unsigned Long Long
 
-typedef char s8; // Signed 8-bit
-typedef short s16; // Signed 16-bit
-typedef int s32; // Signed 32-bit
+typedef signed char s8; // Signed 8-bit
+typedef signed short s16; // Signed 16-bit
+typedef signed int s32; // Signed 32-bit
 #if defined(__SIZEOF_LONG__) && __SIZEOF_LONG__ == 8
-    typedef long s64; // Signed 64-bit
+    typedef signed long s64; // Signed 64-bit
 #else
-    typedef long long s64; // Signed 64-bit
+    typedef signed long long s64; // Signed 64-bit
 #endif
 
 typedef s8 i8; // Signed 8-bit
