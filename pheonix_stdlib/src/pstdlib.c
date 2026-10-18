@@ -404,7 +404,7 @@ __IFN char* retenv(const char* name) {
     return PNULL;
 }
 
-__IFN bool setenv(const char* name, const char* val, bool overwrite) {
+__IFN bool assignenv(const char* name, const char* val, bool overwrite) {
     if (!env_vars || !name || !val) return false;
 
     usize_t nlen = strlen(name);

@@ -2,7 +2,7 @@
 Pheonix Standard Library
 
 NOTES:
-    its recommended to compile without normal STDLIB to force Pheonix Stdlib, as well as the Pheonix Startup Runtime (PSRT) so specific functios like retenv or setenv work.
+    its recommended to compile without normal STDLIB to force Pheonix Stdlib, as well as the Pheonix Startup Runtime (PSRT) so specific functios like retenv or assignenv work.
 */
 
 #pragma once
@@ -418,10 +418,10 @@ Retrieve and returns an environment variable
 __IFN char* retenv(const char* name);
 
 /*
-Set Environment -
-Set and returns an environment variable
+Assign Environment -
+Assigns and returns an environment variable
 */
-__IFN bool setenv(const char* name, const char* val, bool overwrite);
+__IFN bool assignenv(const char* name, const char* val, bool overwrite);
 
 /*
 i64_to_str: Int 64 to String
