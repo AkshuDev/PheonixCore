@@ -118,76 +118,69 @@ typedef unsigned short ushort_t; // Unsigned Short
 typedef unsigned long ulong_t; // Unsigned Long
 typedef unsigned long long ullong_t; // Unsigned Long Long
 
-#if defined(_WIN64)
-	// 64-bit (long long)
+typedef char s8; // Signed 8-bit
+typedef short s16; // Signed 16-bit
+typedef int s32; // Signed 32-bit
+#if defined(__SIZEOF_LONG__) && __SIZEOF_LONG__ == 8
+    typedef long s64; // Signed 64-bit
+#else
+    typedef long long s64; // Signed 64-bit
+#endif
 
-    typedef unsigned long long uptr_t; // Unsigned Pointer
-    typedef long long ptr_t; // Signed Pointer
-    typedef unsigned long long usize_t; // Unsigned Size
-    typedef long long psize_t; // Signed Size
-    
-    #define UPTR_MAX UINT64_MAX
-    #define USIZE_MAX UINT64_MAX
-    
-    #define PTR_MAX INT64_MAX
-    #define PTR_MIN INT64_MIN
-    #define SIZE_MAX INT64_MAX
-    #define SIZE_MIN INT64_MIN
-#elif defined(__LP64__)
+typedef s8 i8; // Signed 8-bit
+typedef s16 i16; // Signed 16-bit
+typedef s32 i32; // Signed 32-bit
+typedef s64 i64; // Signed 64-bit
+
+typedef unsigned char u8; // Unsigned 8-bit
+typedef unsigned short u16; // Unsigned 16-bit
+typedef unsigned int u32; // Unsigned 32-bit
+#if defined(__SIZEOF_LONG__) && __SIZEOF_LONG__ == 8
+    typedef unsigned long u64; // Unsigned 64-bit
+#else
+    typedef unsigned long long u64; // Unsigned 64-bit
+#endif
+
+typedef unsigned int uint; // Unsigned int
+
+#if defined(__SIZEOF_POINTER__) && __SIZEOF_POINTER__ == 8
 	// 64-bit
-
-    typedef unsigned long uptr_t; // Unsigned Pointer
-    typedef long ptr_t; // Signed Pointer
-    typedef unsigned long usize_t; // Unsigned Size
-    typedef long psize_t; // Signed Size
+    typedef u64 uptr_t; // Unsigned Pointer
+    typedef i64 ptr_t; // Signed Pointer
+    typedef u64 usize_t; // Unsigned Size
+    typedef i64 psize_t; // Signed Size
     
     #define UPTR_MAX UINT64_MAX
     #define USIZE_MAX UINT64_MAX
     
     #define PTR_MAX INT64_MAX
     #define PTR_MIN INT64_MIN
-    #define SIZE_MAX INT64_MAX
-    #define SIZE_MIN INT64_MIN
+    #define PSIZE_MAX INT64_MAX
+    #define PSIZE_MIN INT64_MIN
 #else
 	// 32-bit
-
-    typedef unsigned int uptr_t; // Unsigned Pointer
-    typedef int ptr_t; // Signed Pointer
-    typedef unsigned int usize_t; // Unsigned Size
-    typedef int psize_t; // Signed Size
+    typedef u32 uptr_t; // Unsigned Pointer
+    typedef i32 ptr_t; // Signed Pointer
+    typedef u32 usize_t; // Unsigned Size
+    typedef i32 psize_t; // Signed Size
     
     #define UPTR_MAX UINT32_MAX
     #define USIZE_MAX UINT32_MAX
     
     #define PTR_MAX INT32_MAX
     #define PTR_MIN INT32_MIN
-    #define SIZE_MAX INT32_MAX
-    #define SIZE_MIN INT32_MIN
+    #define PSIZE_MAX INT32_MAX
+    #define PSIZE_MIN INT32_MIN
 #endif
 
-typedef long long len_t; // Signed Length
-typedef unsigned long long ulen_t; // Unsigned Length
-typedef unsigned long long upos_t; // Unsigned Position
+typedef i64 len_t; // Signed Length
+typedef u64 ulen_t; // Unsigned Length
+typedef u64 upos_t; // Unsigned Position
 
-typedef unsigned char* uoff_t; // Unsigned Byte Pointer
-typedef char* poff_t; // Byte Pointer
+typedef ubyte_t* uoff_t; // Unsigned Byte Pointer
+typedef byte_t* poff_t; // Byte Pointer
 
-typedef unsigned char flag_t; // 1 = True / 0 = False (Just an example can be used for any type of flag)
-
-typedef char s8; // Signed 8-bit
-typedef short s16; // Signed 16-bit
-typedef int s32; // Signed 32-bit
-typedef long long s64; // Signed 64-bit
-typedef char i8; // Signed 8-bit
-typedef short i16; // Signed 16-bit
-typedef int i32; // Signed 32-bit
-typedef long long i64; // Signed 64-bit
-typedef unsigned char u8; // Unsigned 8-bit
-typedef unsigned short u16; // Unsigned 16-bit
-typedef unsigned int u32; // Unsigned 32-bit
-typedef unsigned long long u64; // Unsigned 64-bit
-
-typedef unsigned int uint; // Unsigned int
+typedef ubyte_t flag_t; // 1 = True / 0 = False (Just an example can be used for any type of flag)
 
 // Enums
 

@@ -656,7 +656,7 @@ __IFN int fprints(PIO_Stream* pio, const char* format, ...) {
     return ret;
 }
 
-__IFN int perror(const char* format, ...) {
+__IFN int fperror(const char* format, ...) {
     va_list ap;
     start_va(ap, format);
     int ret = vfprints(s_stderr, format, ap);

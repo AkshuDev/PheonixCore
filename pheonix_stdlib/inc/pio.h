@@ -133,11 +133,11 @@ characters written or a negative value on error.
 __IFN int print(const char* str, usize_t size);
 
 /*
-perror - Formatted Print to Standard Error
+fperror - Formatted Print to Standard Error
 Writes a formatted string to stderr. Returns the number of
 characters written or a negative value on error.
 */
-__IFN int perror(const char* format, ...);
+__IFN int fperror(const char* format, ...);
 
 /*
 seof - Stream End-of-File
