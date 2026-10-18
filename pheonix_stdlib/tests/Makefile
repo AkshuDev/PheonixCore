@@ -34,7 +34,7 @@ OUT_PREFIX :=
 
 # Sources / Objects
 SRCS := $(wildcard $(SRC_DIR)/*.c)
-OUTS := $(patsubst $(SRC_DIR)/%.c,$(OUT_DIR)/%$(OUT_PREFIX),$(SRCS))
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(OUT_DIR)/%$(OUT_PREFIX),$(SRCS))
 
 # Colors
 ifeq ($(shell command -v tput >/dev/null 2>&1 && echo yes),yes)
@@ -59,8 +59,8 @@ endif
 
 .PHONY: all clean help build_win dirs
 
-all: dirs $(OUTS)
-	@printf "$(C_GREEN)Build done for Arch=$(ARCH) OS=$(OS)\nFiles: $(OUTS)$(C_RESET)\n"
+all: dirs $(OBJS)
+	@printf "$(C_GREEN)Build done for Arch=$(ARCH) OS=$(OS)\nFiles: $(OBJS)$(C_RESET)\n"
 
 dirs:
 	@mkdir -p $(BUILD_DIR)

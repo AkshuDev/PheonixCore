@@ -85,6 +85,27 @@ char* str = (char*)PNULL;
     #endif
 #endif
 
+// Limits
+#define INT64_MAX 0x7FFFFFFFFFFFFFFFLL
+#define INT64_MIN 0x8000000000000000LL
+#define INT32_MAX 0x7FFFFFFFLL
+#define INT32_MIN 0x80000000LL
+#define INT16_MAX 0x7FFFLL
+#define INT16_MIN 0x8000LL
+#define INT8_MAX 0x7FLL
+#define INT8_MIN 0x80LL
+
+#define INT_MAX INT32_MAX
+#define INT_MIN INT32_MIN
+
+#define UINT64_MAX 0xFFFFFFFFFFFFFFFFULL
+#define UINT32_MAX 0xFFFFFFFFULL
+#define UINT16_MAX 0xFFFFULL
+#define UINT8_MAX 0xFFULL
+
+#define UINT_MAX UINT32_MAX
+#define UINT_MIN UINT32_MIN
+
 // Typedefs
 typedef char byte_t; // Byte
 typedef long long_t; // Long
@@ -104,6 +125,14 @@ typedef unsigned long long ullong_t; // Unsigned Long Long
     typedef long long ptr_t; // Signed Pointer
     typedef unsigned long long usize_t; // Unsigned Size
     typedef long long psize_t; // Signed Size
+    
+    #define UPTR_MAX UINT64_MAX
+    #define USIZE_MAX UINT64_MAX
+    
+    #define PTR_MAX INT64_MAX
+    #define PTR_MIN INT64_MIN
+    #define SIZE_MAX INT64_MAX
+    #define SIZE_MIN INT64_MIN
 #elif defined(__LP64__)
 	// 64-bit
 
@@ -111,6 +140,14 @@ typedef unsigned long long ullong_t; // Unsigned Long Long
     typedef long ptr_t; // Signed Pointer
     typedef unsigned long usize_t; // Unsigned Size
     typedef long psize_t; // Signed Size
+    
+    #define UPTR_MAX UINT64_MAX
+    #define USIZE_MAX UINT64_MAX
+    
+    #define PTR_MAX INT64_MAX
+    #define PTR_MIN INT64_MIN
+    #define SIZE_MAX INT64_MAX
+    #define SIZE_MIN INT64_MIN
 #else
 	// 32-bit
 
@@ -118,6 +155,14 @@ typedef unsigned long long ullong_t; // Unsigned Long Long
     typedef int ptr_t; // Signed Pointer
     typedef unsigned int usize_t; // Unsigned Size
     typedef int psize_t; // Signed Size
+    
+    #define UPTR_MAX UINT32_MAX
+    #define USIZE_MAX UINT32_MAX
+    
+    #define PTR_MAX INT32_MAX
+    #define PTR_MIN INT32_MIN
+    #define SIZE_MAX INT32_MAX
+    #define SIZE_MIN INT32_MIN
 #endif
 
 typedef long long len_t; // Signed Length
@@ -209,27 +254,6 @@ struct PEHdlr {
 #else
     #define __IFN // Internal Function
 #endif
-
-// Limits
-#define INT64_MAX 0x7FFFFFFFFFFFFFFFLL
-#define INT64_MIN 0x8000000000000000LL
-#define INT32_MAX 0x7FFFFFFFLL
-#define INT32_MIN 0x80000000LL
-#define INT16_MAX 0x7FFFLL
-#define INT16_MIN 0x8000LL
-#define INT8_MAX 0x7FLL
-#define INT8_MIN 0x80LL
-
-#define INT_MAX INT32_MAX
-#define INT_MIN INT32_MIN
-
-#define UINT64_MAX 0xFFFFFFFFFFFFFFFFULL
-#define UINT32_MAX 0xFFFFFFFFULL
-#define UINT16_MAX 0xFFFFULL
-#define UINT8_MAX 0xFFULL
-
-#define UINT_MAX UINT32_MAX
-#define UINT_MIN UINT32_MIN
 
 // Quick Maths
 #define max(a, b) ((a) > (b) ? (a) : (b))
