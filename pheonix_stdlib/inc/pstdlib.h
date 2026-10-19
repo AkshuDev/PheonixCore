@@ -50,11 +50,6 @@ char* str = (char*)PNULL;
     #include <winnt.h>
 #endif
 
-#define __MEMTYPE_EXEC__ 1 // Memory Type: Executable
-#define __MEMTYPE_READ__ 2 // Memory Type: Read
-#define __MEMTYPE_WRITE__ 3 // Memory Type: Write
-#define __MEMTYPE_NONE__ 4 // Memory Type: None (Will be not accessed)
-
 #define __PHM_HDR_FLAG_ALLOCATED__ (1 << 0)
 #define __PHM_HDR_FLAG_AUTO_FREE__ (1 << 1)
 
@@ -198,6 +193,17 @@ typedef enum {
     PSTREAM_FLAG_BINARY = 1 << 6, // Binary
 } PStreamFlags;
 
+/*
+PAllocMemoryTypes: Pheonix Allocation Memory Types
+Provides various memory permissions/types for 'exalloc' function
+*/
+typedef enum {
+	ALLOC_MEMTYPE_NONE = 1 << 0, // Memory Type: None (Will be not accessed)
+	ALLOC_MEMTYPE_EXEC = 1 << 1, // Memory Type: Executable
+	ALLOC_MEMTYPE_READ = 1 << 2, // Memory Type: Read
+	ALLOC_MEMTYPE_WRITE = 1 << 3, // Memory Type: Write
+} PAllocMemoryTypes;
+
 // Structures
 
 /*
@@ -206,12 +212,12 @@ PStream: Pheonix Stream.
 Provides a unified interface for reading, writing, and seeking
 across various data sources such as files, memory buffers, or network streams.
 */
-typedef struct PStream {
+typedef struct {
     uptr_t handle; // Internal Stream Handle
     uoff_t readpos; // Current Reading position
     uoff_t writepos; // Current Writing position
     uoff_t filepos; // Current Logical File Position corresponding to the buffer
-    ulen_t len; // Length
+    ulen_t len; // Length of the internal buffer
     PStreamFlags flags; // Flags
     u8* buf; // Internal buffer
     int md_err; // Meta Data: Stores Last Error

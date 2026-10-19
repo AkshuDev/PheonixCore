@@ -2,6 +2,8 @@
 #define __IPSTDLIB_BUILD
 #include <pio.h>
 
+#include <pstdlib.h>
+
 #ifdef _WIN32
 /*
 Pheonix Standard Output Stream
@@ -17,7 +19,8 @@ PIO_Stream raw_PStdoutStream = {
         .buf=(u8*)PNULL,
         .md_err=0
     },
-    .last_err=PIO_ERR_NONE
+    .last_err_xstr=PNULL,
+	.last_err_func=PNULL
 };
 
 /*
@@ -34,7 +37,8 @@ PIO_Stream raw_PStdinStream = {
         .buf=(u8*)PNULL,
         .md_err=0
     },
-    .last_err=PIO_ERR_NONE
+    .last_err_xstr=PNULL,
+	.last_err_func=PNULL
 };
 
 
@@ -52,7 +56,8 @@ PIO_Stream raw_PStderrStream = {
         .buf=(u8*)PNULL,
         .md_err=0
     },
-    .last_err=PIO_ERR_NONE
+    .last_err_xstr=PNULL,
+	.last_err_func=PNULL
 };
 #else
 /*
@@ -69,7 +74,8 @@ PIO_Stream raw_PStdoutStream = {
         .buf=(u8*)PNULL,
         .md_err=0
     },
-    .last_err=PIO_ERR_NONE
+    .last_err_xstr=PNULL,
+	.last_err_func=PNULL
 };
 
 /*
@@ -86,7 +92,8 @@ PIO_Stream raw_PStdinStream = {
         .buf=(u8*)PNULL,
         .md_err=0
     },
-    .last_err=PIO_ERR_NONE
+    .last_err_xstr=PNULL,
+	.last_err_func=PNULL
 };
 
 /*
@@ -103,8 +110,13 @@ PIO_Stream raw_PStderrStream = {
         .buf=(u8*)PNULL,
         .md_err=0
     },
-    .last_err=PIO_ERR_NONE
+    .last_err_xstr=PNULL,
+	.last_err_func=PNULL
 };
+#endif
+
+#ifndef PIO_STREAM_BUF_CAP
+	#define PIO_STREAM_BUF_CAP 0x2000 // 8KB
 #endif
 
 PIO_Stream* PStdoutStream = &raw_PStdoutStream;
@@ -132,7 +144,9 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
 
         HANDLE h = CreateFileA(path, access, FILE_SHARE_READ, PNULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, PNULL);
         if (h == INVALID_HANDLE_VALUE) {
-            pio->last_err = PIO_ERR_OPEN;
+			pio->stream.md_err = PIO_ERR_OPEN;
+            pio->last_err_xstr = "'CreateFileA' returned an Invalid Handle";
+			pio->last_err_func = "sopen_file";
             return pio;
         }
         pio->stream.handle = (uptr_t)h;
@@ -151,13 +165,17 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
 
         int fd = open(path, mode, permissions);
         if (fd < 0) {
-            pio->last_err = PIO_ERR_OPEN;
+			pio->stream.md_err = PIO_ERR_OPEN;
+            pio->last_err_xstr = "'open' returned negative file descriptor";
+			pio->last_err_func = "sopen_file";
             return pio;
         }
         pio->stream.handle = (uptr_t)fd;
     #endif
 
-    pio->last_err = PIO_ERR_NONE;
+    pio->last_err_xstr = PNULL;
+	pio->last_err_func = PNULL;
+	pio->stream.md_err = PIO_ERR_NONE;
     pio->stream.readpos = 0;
     pio->stream.writepos = 0;
     pio->stream.filepos = 0;
@@ -168,8 +186,8 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
     return pio;
 }
 
-__IFN bool sclose(PIO_Stream* pio) {
-    if (!pio) return false;
+__IFN void sclose(PIO_Stream* pio) {
+    if (!pio) return;
 
     #ifdef _WIN32
         CloseHandle((HANDLE)pio->stream.handle);
@@ -179,7 +197,6 @@ __IFN bool sclose(PIO_Stream* pio) {
 
     if (pio->stream.buf) dealloc(pio->stream.buf);
     dealloc(pio);
-    return true;
 }
 
 __IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size) {
@@ -188,14 +205,22 @@ __IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size) {
     #ifdef _WIN32
         DWORD read = 0;
         if (!ReadFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &read, PNULL)) {
-            pio->last_err = PIO_ERR_READ;
+			if (GetLastError() == ERROR_IO_PENDING) goto success;
+			pio->stream.md_err = PIO_ERR_READ;
+            pio->last_err_xstr = "'ReadFile' failed";
+			pio->last_err_func = "sread";
             return 0;
         }
-        return (usize_t)read;
+
+		success: {
+        	return (usize_t)read;
+		}
     #else
         long ret = read((int)pio->stream.handle, buffer, size);
         if (ret < 0) {
-            pio->last_err = PIO_ERR_READ;
+			pio->stream.md_err = PIO_ERR_READ;
+            pio->last_err_xstr = "'read' returned negative value";
+			pio->last_err_func = "sread";
             return 0;
         }
         return (usize_t)ret;
@@ -208,14 +233,21 @@ __IFN usize_t swrite(PIO_Stream* pio, const void* buffer, usize_t size) {
     #ifdef _WIN32
         DWORD written = 0;
         if (!WriteFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &written, PNULL)) {
-            pio->last_err = PIO_ERR_WRITE;
+			if (GetLastError() == ERROR_IO_PENDING) goto success;
+			pio->stream.md_err = PIO_ERR_WRITE;
+            pio->last_err_xstr = "'WriteFile' failed";
+			pio->last_err_func = "swrite";
             return 0;
         }
-        return (usize_t)written;
+		success: {
+        	return (usize_t)written;
+		}
     #else
         long ret = write((int)pio->stream.handle, buffer, size);
         if (ret < 0) {
-            pio->last_err = PIO_ERR_WRITE;
+			pio->stream.md_err = PIO_ERR_WRITE;
+            pio->last_err_xstr = "'write' returned negative value";
+			pio->last_err_func = "swrite";
             return 0;
         }
         return (usize_t)ret;
@@ -224,55 +256,72 @@ __IFN usize_t swrite(PIO_Stream* pio, const void* buffer, usize_t size) {
 
 __IFN bool sseek(PIO_Stream* pio, long offset, int origin) {
     if (!pio) return false;
-
+	uoff_t fpos = 0;
+	
     #ifdef _WIN32
         LARGE_INTEGER li;
         li.QuadPart = offset;
-        if (!SetFilePointerEx((HANDLE)pio->stream.handle, li, PNULL, origin)) {
-            pio->last_err = PIO_ERR_SEEK;
+
+		DWORD pos = SetFilePointerEx((HANDLE)pio->stream.handle, li, PNULL, origin);
+        if (pos == INVALID_SET_FILE_POINTER) {
+			pio->stream.md_err = PIO_ERR_SEEK;
+            pio->last_err_xstr = "'SetFilePointerEx' failed";
+			pio->last_err_func = "sseek";
             return false;
         }
-        return true;
     #else
         long ret = lseek((int)pio->stream.handle, offset, origin);
         if (ret < 0) {
-            pio->last_err = PIO_ERR_SEEK;
+			pio->stream.md_err = PIO_ERR_SEEK;
+            pio->last_err_xstr = "'lseek' returned negative value";
+			pio->last_err_func = "sseek";
             return false;
         }
-        return true;
     #endif
+
+
+	pio->stream.filepos;
 }
 
-__IFN ulen_t stell(PIO_Stream* pio) {
-    if (!pio) return (ulen_t)-1;
+__IFN len_t stell(PIO_Stream* pio) {
+    if (!pio) return (len_t)-1;
     #ifdef _WIN32
         LARGE_INTEGER pos;
         pos.QuadPart = 0;
-        SetFilePointerEx((HANDLE)pio->stream.handle, pos, &pos, FILE_CURRENT);
-        return (ulen_t)pos.QuadPart;
+        DWORD out = SetFilePointerEx((HANDLE)pio->stream.handle, pos, &pos, FILE_CURRENT);
+
+		if (out == 0) {
+			pio->stream.md_err = PIO_ERR_SEEK;
+            pio->last_err_xstr = "'SetFilePointerEx' returned invalid value";
+			pio->last_err_func = "stell";
+            return (len_t)-1;
+		}
+        return (len_t)pos.QuadPart;
     #else
         long ret = lseek((int)pio->stream.handle, 0, SEEK_CUR);
         if (ret < 0) {
-            pio->last_err = PIO_ERR_SEEK;
-            return (ulen_t)-1;
+			pio->stream.md_err = PIO_ERR_SEEK;
+            pio->last_err_xstr = "'lseek' returned negative value";
+			pio->last_err_func = "stell";
+            return (len_t)-1;
         }
-        return (ulen_t)ret;
+        return (len_t)ret;
     #endif
 }
 
 __IFN bool seof(PIO_Stream* pio) {
-    if (!pio) return true;
-    ulen_t cur = stell(pio);
-    #ifdef _WIN32
-        LARGE_INTEGER end;
-        SetFilePointerEx((HANDLE)pio->stream.handle, end, &end, FILE_END);
-        sseek(pio, cur, 0);
-        return cur >= (ulen_t)end.QuadPart;
-    #else
-        long end = lseek((int)pio->stream.handle, 0, SEEK_END);
-        sseek(pio, cur, 0);
-        return cur >= (ulen_t)end;
-    #endif
+    if (!pio) return true; // Count errors as EOF
+
+    len_t cur = stell(pio);
+	if (cur < 0) return true;
+
+	if (!sseek(pio, 0, SEEK_END)) return true;
+	len_t end = stell(pio);
+	if (end < 0) return true;
+	
+	if (!sseek(pio, cur, SEEK_SET)) return true;
+
+	return cur >= end;
 }
 
 __IFN bool sflush(PIO_Stream* pio) {
@@ -283,15 +332,15 @@ __IFN bool sflush(PIO_Stream* pio) {
 
 __IFN PIO_Errors slast_err(PIO_Stream* pio) {
     if (!pio) return PIO_ERR_UNK;
-    return pio->last_err;
+    return pio->stream.md_err;
 }
 
-__IFN const char* get_lasterr_msg(void) {
-    // Uses stderr stream
-    PIO_Errors le = !s_stderr ? PIO_ERR_UNK : s_stderr->last_err;
-    switch (le) {
-        case PIO_ERR_NONE: return "None";
-        case PIO_ERR_UNK: return "Unknown";
+__IFN const char* slast_err_msg(PIO_Stream* pio) {
+    PIO_Errors err = slast_err(pio);
+
+	switch (err) {
+        case PIO_ERR_NONE: return "No error";
+        case PIO_ERR_UNK: return "Unknown reason";
         case PIO_ERR_EOF: return "End of File (EOF)";
         case PIO_ERR_OPEN: return "Stream could not be opened";
         case PIO_ERR_READ: return "Stream could not be read from";
@@ -301,18 +350,27 @@ __IFN const char* get_lasterr_msg(void) {
     }
 }
 
+__IFN const char* slast_xerr_msg(PIO_Stream* pio, const char** xmsg, const char** func) {
+	const char* out = slast_err_msg(pio);
+	if (!pio) return out;
+
+	if (xmsg) *xmsg = pio->last_err_xstr;
+	if (func) *func = pio->last_err_func;
+	return out;
+}
+
 __IFN int print(const char* str, usize_t size) {
     if (!str) return -1;
     #ifdef _WIN32
-        if (PStdoutStream->stream.handle == INVALID_HANDLE_VALUE)
-            return -2;
+        if (PStdoutStream->stream.handle == INVALID_HANDLE_VALUE) return -2;
         int chars_written;
         WriteConsole(PStdoutStream->stream.handle, str, size, &chars_written, PNULL);
         return chars_written;
     #else
         swrite(PStdoutStream, str, size);
     #endif
-    return -4;
+
+    return -3;
 }
 
 __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {

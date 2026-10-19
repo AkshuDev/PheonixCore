@@ -130,13 +130,13 @@ __IFN void* exalloc(usize_t size, uint_t type, void* link, bool auto_free) {
     uint_t prot = 0;
 
     #if defined(__linux__)
-        if (type & __MEMTYPE_EXEC__)
+        if (type & ALLOC_MEMTYPE_EXEC)
             prot |= PROT_EXEC;
-        if (type & __MEMTYPE_NONE__)
+        if (type & ALLOC_MEMTYPE_NONE)
             prot |= PROT_NONE;
-        if (type & __MEMTYPE_READ__)
+        if (type & ALLOC_MEMTYPE_READ)
             prot |= PROT_READ;
-        if (type & __MEMTYPE_WRITE__)
+        if (type & ALLOC_MEMTYPE_WRITE)
             prot |= PROT_WRITE;
         ptr = mmap(PNULL, size + sizeof(struct PHM_Hdr), prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
@@ -144,18 +144,18 @@ __IFN void* exalloc(usize_t size, uint_t type, void* link, bool auto_free) {
             ptr = PNULL;
         }
     #elif defined(_WIN32)
-        if (type & __MEMTYPE_EXEC__ && type & __MEMTYPE_READ__ &&
-            type & __MEMTYPE_WRITE__)
+        if (type & ALLOC_MEMTYPE_EXEC && type & ALLOC_MEMTYPE_READ &&
+            type & ALLOC_MEMTYPE_WRITE)
             prot = PAGE_EXECUTE_READWRITE;
-        else if (type & __MEMTYPE_EXEC__ && type & __MEMTYPE_READ__)
+        else if (type & ALLOC_MEMTYPE_EXEC && type & ALLOC_MEMTYPE_READ)
             prot = PAGE_EXECUTE_READ 
-        else if (type & __MEMTYPE_EXEC__) 
+        else if (type & ALLOC_MEMTYPE_EXEC) 
             prot = PAGE_EXECUTE;
-        else if (type & __MEMTYPE_NONE__)
+        else if (type & ALLOC_MEMTYPE_NONE)
             prot = PAGE_NOACCESS;
-        else if (type & __MEMTYPE_WRITE__)
+        else if (type & ALLOC_MEMTYPE_WRITE)
             prot = PAGE_READWRITE;
-        else if (type & __MEMTYPE_READ__)
+        else if (type & ALLOC_MEMTYPE_READ)
             prot = PAGE_READONLY;
         else
             prot = PAGE_NOACCESS;
@@ -187,13 +187,13 @@ __IFN void* exalloc(usize_t size, uint_t type, void* link, bool auto_free) {
             if (exalloc_count >= exalloc_capacity) {
                 usize_t newcap = exalloc_capacity ? exalloc_capacity * 2 : 16;
                 
-                void* nptr = exalloc(newcap * sizeof(void*), __MEMTYPE_READ__ | __MEMTYPE_WRITE__, PNULL, false);
+                void* nptr = exalloc(newcap * sizeof(void*), ALLOC_MEMTYPE_READ | ALLOC_MEMTYPE_WRITE, PNULL, false);
                 if (!nptr) return rptr; // Cant auto free this
                 copybuf(nptr, exalloc_ptrs, sizeof(void*) * exalloc_capacity);
                 dealloc(exalloc_ptrs);
                 exalloc_ptrs = nptr;
 
-                nptr = exalloc(newcap * sizeof(usize_t), __MEMTYPE_READ__ | __MEMTYPE_WRITE__, PNULL, false);
+                nptr = exalloc(newcap * sizeof(usize_t), ALLOC_MEMTYPE_READ | ALLOC_MEMTYPE_WRITE, PNULL, false);
                 if (!nptr) return rptr;
                 copybuf(nptr, exalloc_free_stack, sizeof(usize_t) * exalloc_capacity);
                 dealloc(exalloc_free_stack);
@@ -214,7 +214,7 @@ __IFN void* exalloc(usize_t size, uint_t type, void* link, bool auto_free) {
 }
 
 __IFN void* alloc(usize_t size) {
-    return exalloc(size, __MEMTYPE_READ__ | __MEMTYPE_WRITE__, PNULL, true);
+    return exalloc(size, ALLOC_MEMTYPE_READ | ALLOC_MEMTYPE_WRITE, PNULL, true);
 }
 
 __IFN bool dealloc(void* ptr) {
@@ -247,7 +247,7 @@ __IFN bool dealloc(void* ptr) {
 }
 
 __IFN void* zalloc(usize_t size) {
-    void* ptr = exalloc(size, __MEMTYPE_READ__ | __MEMTYPE_WRITE__, PNULL, true);
+    void* ptr = exalloc(size, ALLOC_MEMTYPE_READ | ALLOC_MEMTYPE_WRITE, PNULL, true);
     if (!ptr) return ptr;
     if (!fillbuf(ptr, 0, size)) {
         dealloc(ptr);
@@ -257,7 +257,7 @@ __IFN void* zalloc(usize_t size) {
 }
 
 __IFN void* ralloc(void* ptr, usize_t size) {
-    void* nptr = exalloc(size, __MEMTYPE_WRITE__ | __MEMTYPE_READ__, NULL, true);
+    void* nptr = exalloc(size, ALLOC_MEMTYPE_WRITE | ALLOC_MEMTYPE_READ, PNULL, true);
     if (!nptr) {
         return PNULL;
     }
@@ -270,7 +270,7 @@ __IFN void* ralloc(void* ptr, usize_t size) {
 }
 
 __IFN void* rzalloc(void* ptr, usize_t size) {
-    void* nptr = exalloc(size, __MEMTYPE_READ__ | __MEMTYPE_WRITE__, ptr, true);
+    void* nptr = exalloc(size, ALLOC_MEMTYPE_READ | ALLOC_MEMTYPE_WRITE, ptr, true);
     if (!nptr) {
         return PNULL;
     }
