@@ -1,6 +1,6 @@
 #pragma once
 
-#ifndef PHEONIX_CORE_PTL
+#if !defined(PHEONIX_CORE_PTL)
 #define PHEONIX_CORE_PTL
 
 #include <stdint.h>

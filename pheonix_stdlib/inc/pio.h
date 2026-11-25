@@ -7,16 +7,6 @@
 extern "C" {
 #endif
 
-#if defined(__linux__) || defined(__unix__)
-    #include <fcntl.h>
-    #include <unistd.h>
-    #define __lstdin 0
-    #define __lstdout 1
-    #define __lstderr 2
-#elif defined(_WIN32)
-    #include <windows.h>
-#endif
-
 // Linux and windows share same values
 #if !defined(SEEK_SET)
 	#define SEEK_SET 0 // Seek from beginning of file
@@ -34,6 +24,7 @@ Pheonix I/O Error Codes
 typedef enum {
     PIO_ERR_NONE = 0, // No Error
     PIO_ERR_OPEN, // Error while opening
+	PIO_ERR_CLOSE, // Error while closing
     PIO_ERR_READ, // Error while reading
     PIO_ERR_WRITE, // Error while writing
     PIO_ERR_SEEK, // Error while seeking
@@ -74,7 +65,7 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags);
 sclose - Stream Close
 Closes the provided PIO_Stream and releases any allocated resources
 */
-__IFN void sclose(PIO_Stream* pio);
+__IFN bool sclose(PIO_Stream* pio);
 
 /*
 sread - Stream Read

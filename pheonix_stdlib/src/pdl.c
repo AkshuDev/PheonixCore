@@ -30,6 +30,19 @@ struct PDLHdr {
 struct PDLElfInfo {
 	bool _is64bit; // ELFCLASS64
 	bool _isle; // ELFDATA2LSB
+
+	union {
+        Elf64_Ehdr elf64;
+        Elf32_Ehdr elf32;
+    } hdr;
+
+	void* phdrs;
+    usize_t phnum;
+
+    void* load_base;
+    usize_t load_size;
+
+    u64 load_bias;
 };
 
 // ELF
@@ -195,13 +208,18 @@ static bool _pdl_validate_elf64(PIO_Stream* f, ulen_t size, struct PDLElfInfo* i
 		dealloc(phdrs);
 		return false;
 	}
-	phdrs_error_end: {
-		dealloc(phdrs);
-	}
+	phdrs_error_end: {}
 
+	inout->hdr.elf64 = hdr;
+	inout->phdrs = phdrs;
+	inout->phnum = hdr.e_phnum;
 
+	return true;
 }
 
+static bool _pdl_load_elf64(struct PDLElfInfo* in) {
+	
+}
 
 static bool _pdl_elf32_load_contains_file(const Elf32_Phdr* load, const Elf32_Phdr* other) {
     if (other->p_offset < load->p_offset) return false;
@@ -278,7 +296,10 @@ static bool _pdl_validate_elf32(PIO_Stream* f, ulen_t size, struct PDLElfInfo* i
 
 	if (hdr.e_shstrndx < 1 || hdr.e_shstrndx >= hdr.e_shnum) return false;
 
-
+	inout->hdr.elf32 = hdr;
+	// inout->phdrs = phdrs;
+	inout->phnum = hdr.e_phnum;
+	return true;
 }
 
 

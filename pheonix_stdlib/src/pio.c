@@ -4,118 +4,127 @@
 
 #include <pstdlib.h>
 
-#ifdef _WIN32
-/*
-Pheonix Standard Output Stream
-*/
-PIO_Stream raw_PStdoutStream = {
-    .stream={
-        .handle=-1,
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_WRITE,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err_xstr=PNULL,
-	.last_err_func=PNULL
-};
+#if defined(__linux__) || defined(__unix__)
+    #include <fcntl.h>
+    #include <unistd.h>
+	#include <dirent.h>
+    #define __lstdin 0
+    #define __lstdout 1
+    #define __lstderr 2
 
-/*
-Pheonix Standard Input Stream
-*/
-PIO_Stream raw_PStdinStream = {
-    .stream={
-        .handle=-1,
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_READ,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err_xstr=PNULL,
-	.last_err_func=PNULL
-};
+	/*
+	Pheonix Standard Output Stream
+	*/
+	PIO_Stream raw_PStdoutStream = {
+		.stream={
+			.handle=__lstdout,
+			.readpos=0,
+			.writepos=0,
+			.filepos=0,
+			.len=0,
+			.flags=PSTREAM_FLAG_WRITE,
+			.buf=(u8*)PNULL,
+			.md_err=0
+		},
+		.last_err_xstr=PNULL,
+		.last_err_func=PNULL
+	};
+
+	/*
+	Pheonix Standard Input Stream
+	*/
+	PIO_Stream raw_PStdinStream = {
+		.stream={
+			.handle=__lstdin,
+			.readpos=0,
+			.writepos=0,
+			.filepos=0,
+			.len=0,
+			.flags=PSTREAM_FLAG_READ,
+			.buf=(u8*)PNULL,
+			.md_err=0
+		},
+		.last_err_xstr=PNULL,
+		.last_err_func=PNULL
+	};
+
+	/*
+	Pheonix Standard Error Stream
+	*/
+	PIO_Stream raw_PStderrStream = {
+		.stream={
+			.handle=__lstderr,
+			.readpos=0,
+			.writepos=0,
+			.filepos=0,
+			.len=0,
+			.flags=PSTREAM_FLAG_WRITE,
+			.buf=(u8*)PNULL,
+			.md_err=0
+		},
+		.last_err_xstr=PNULL,
+		.last_err_func=PNULL
+	};
+#elif defined(_WIN32)
+    #include <windows.h>
+
+	/*
+	Pheonix Standard Output Stream
+	*/
+	PIO_Stream raw_PStdoutStream = {
+		.stream={
+			.handle=-1,
+			.readpos=0,
+			.writepos=0,
+			.filepos=0,
+			.len=0,
+			.flags=PSTREAM_FLAG_WRITE,
+			.buf=(u8*)PNULL,
+			.md_err=0
+		},
+		.last_err_xstr=PNULL,
+		.last_err_func=PNULL
+	};
+
+	/*
+	Pheonix Standard Input Stream
+	*/
+	PIO_Stream raw_PStdinStream = {
+		.stream={
+			.handle=-1,
+			.readpos=0,
+			.writepos=0,
+			.filepos=0,
+			.len=0,
+			.flags=PSTREAM_FLAG_READ,
+			.buf=(u8*)PNULL,
+			.md_err=0
+		},
+		.last_err_xstr=PNULL,
+		.last_err_func=PNULL
+	};
 
 
-/*
-Pheonix Standard Error Stream
-*/
-PIO_Stream raw_PStderrStream = {
-    .stream={
-        .handle=-1,
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_WRITE,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err_xstr=PNULL,
-	.last_err_func=PNULL
-};
-#else
-/*
-Pheonix Standard Output Stream
-*/
-PIO_Stream raw_PStdoutStream = {
-    .stream={
-        .handle=__lstdout,
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_WRITE,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err_xstr=PNULL,
-	.last_err_func=PNULL
-};
-
-/*
-Pheonix Standard Input Stream
-*/
-PIO_Stream raw_PStdinStream = {
-    .stream={
-        .handle=__lstdin,
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_READ,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err_xstr=PNULL,
-	.last_err_func=PNULL
-};
-
-/*
-Pheonix Standard Error Stream
-*/
-PIO_Stream raw_PStderrStream = {
-    .stream={
-        .handle=__lstderr,
-        .readpos=0,
-        .writepos=0,
-        .filepos=0,
-        .len=0,
-        .flags=PSTREAM_FLAG_WRITE,
-        .buf=(u8*)PNULL,
-        .md_err=0
-    },
-    .last_err_xstr=PNULL,
-	.last_err_func=PNULL
-};
+	/*
+	Pheonix Standard Error Stream
+	*/
+	PIO_Stream raw_PStderrStream = {
+		.stream={
+			.handle=-1,
+			.readpos=0,
+			.writepos=0,
+			.filepos=0,
+			.len=0,
+			.flags=PSTREAM_FLAG_WRITE,
+			.buf=(u8*)PNULL,
+			.md_err=0
+		},
+		.last_err_xstr=PNULL,
+		.last_err_func=PNULL
+	};
 #endif
 
-#ifndef PIO_STREAM_BUF_CAP
+#if !defined(PIO_STREAM_BUF_CAP)
 	#define PIO_STREAM_BUF_CAP 0x2000 // 8KB
 #endif
 
@@ -124,7 +133,7 @@ PIO_Stream* PStdinStream = &raw_PStdinStream;
 PIO_Stream* PStderrStream = &raw_PStderrStream;
 
 __IFN void __pio_init_streams(void) {
-    #ifdef _WIN32
+    #if defined(_WIN32)
         PStderrStream->stream.handle = (uptr_t)GetStdHandle(STD_ERROR_HANDLE);
         PStdoutStream->stream.handle = (uptr_t)GetStdHandle(STD_OUTPUT_HANDLE);
         PStdinStream->stream.handle = (uptr_t)GetStdHandle(STD_INPUT_HANDLE);
@@ -137,7 +146,7 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
     PIO_Stream* pio = (PIO_Stream*)zalloc(sizeof(PIO_Stream));
     if (!pio) return PNULL;
 
-    #ifdef _WIN32
+    #if defined(_WIN32)
         DWORD access = 0;
         if (flags & PSTREAM_FLAG_READ) access |= GENERIC_READ;
         if (flags & PSTREAM_FLAG_WRITE) access |= GENERIC_WRITE;
@@ -147,7 +156,7 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
 			pio->stream.md_err = PIO_ERR_OPEN;
             pio->last_err_xstr = "'CreateFileA' returned an Invalid Handle";
 			pio->last_err_func = "sopen_file";
-            return pio;
+			goto error;
         }
         pio->stream.handle = (uptr_t)h;
     #else
@@ -168,7 +177,8 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
 			pio->stream.md_err = PIO_ERR_OPEN;
             pio->last_err_xstr = "'open' returned negative file descriptor";
 			pio->last_err_func = "sopen_file";
-            return pio;
+            
+			goto error;
         }
         pio->stream.handle = (uptr_t)fd;
     #endif
@@ -181,28 +191,172 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
     pio->stream.filepos = 0;
     pio->stream.len = 0;
     pio->stream.flags = flags;
+	pio->stream.type = PSTREAM_TYPE_FILE;
     pio->stream.buf = PNULL;
 
     return pio;
+
+	error: {
+		dealloc(pio);
+        return PNULL;
+	}
 }
 
-__IFN void sclose(PIO_Stream* pio) {
-    if (!pio) return;
+__IFN PIO_Stream* sopen_dir(const char* path) {
+	if (!path) return PNULL;
 
-    #ifdef _WIN32
-        CloseHandle((HANDLE)pio->stream.handle);
+    PIO_Stream* pio = (PIO_Stream*)zalloc(sizeof(PIO_Stream));
+    if (!pio) return PNULL;
+
+	#if defined(_WIN32)
+		pio->stream.buf = (u8*)zalloc(sizeof(WIN32_FIND_DATAA));
+		if (!pio->stream.buf) {
+			pio->stream.md_err = PIO_ERR_OPEN;
+            pio->last_err_xstr = "Failed to allocate memory";
+			pio->last_err_func = "sopen_dir";
+            
+			goto error;
+		}
+		pio->stream.len = sizeof(WIN32_FIND_DATAA);
+        pio->stream.handle = (uptr_t)INVALID_HANDLE_VALUE;
     #else
-        close((int)pio->stream.handle);
+        DIR* fd = opendir(path);
+        if (!fd) {
+			pio->stream.md_err = PIO_ERR_OPEN;
+            pio->last_err_xstr = "'opendir' returned NULL";
+			pio->last_err_func = "sopen_dir";
+            
+			goto error;
+        }
+        pio->stream.handle = (uptr_t)fd;
     #endif
+
+    pio->last_err_xstr = PNULL;
+	pio->last_err_func = PNULL;
+	pio->stream.md_err = PIO_ERR_NONE;
+    pio->stream.readpos = 0;
+    pio->stream.writepos = 0;
+    pio->stream.filepos = 0;
+    pio->stream.flags = PSTREAM_FLAG_NONE;
+	pio->stream.type = PSTREAM_TYPE_DIR;
+
+	return pio;
+
+	error: {
+		if (pio->stream.buf) dealloc(pio->stream.buf);
+		dealloc(pio);
+        return PNULL;
+	}
+}
+
+__IFN const char* sread_dir(PIO_Stream* pio) {
+	if (!pio) return PNULL;
+
+	#if defined(_WIN32)
+		if (pio->stream.len != sizeof(WIN32_FIND_DATAA) || !pio->stream.buf) {
+			pio->stream.md_err = PIO_ERR_READ;
+			pio->last_err_xstr = "Directory Stream's internal entry structure is either not-allocated or malformed";
+			pio->last_err_func = "sread_dir";
+			return PNULL;
+		}
+		WIN32_FIND_DATAA* dir = (WIN32_FIND_DATAA*)pio->stream.buf;
+
+		if (pio->stream.handle != INVALID_HANDLE_VALUE) {
+			if (!FindNextFileA((HANDLE)pio->stream.handle, dir)) {
+				pio->stream.md_err = PIO_ERR_READ;
+				pio->last_err_xstr = "'FindNextFileA' returned FALSE (failure)";
+				pio->last_err_func = "sread_dir";
+				return PNULL;
+			}
+		} else {
+			HANDLE h = FindFirstFileA(path, dir);
+			if (h == INVALID_HANDLE_VALUE) {
+				pio->stream.md_err = PIO_ERR_READ;
+				pio->last_err_xstr = "'FindFirstFileA' returned an Invalid Handle";
+				pio->last_err_func = "sread_dir";
+
+				goto error;
+			}
+
+			pio->stream.handle = h;
+			pio->stream.filepos = 0;
+		}
+		pio->stream.filepos++;
+
+		return (const char*)dir->cFileName;
+    #else
+        struct dirent* dir = readdir((DIR*)pio->stream.handle);
+        if (!dir) {
+			pio->stream.md_err = PIO_ERR_READ;
+            pio->last_err_xstr = "'readdir' returned NULL";
+			pio->last_err_func = "sread_dir";
+            return 0;
+        }
+		pio->stream.filepos++;
+        return (const char*)dir->d_name;
+    #endif
+}
+
+__IFN bool sclose(PIO_Stream* pio) {
+    if (!pio) return false;
+
+	switch (pio->stream.type) {
+		case PSTREAM_TYPE_FILE: {
+			#if defined(_WIN32)
+				if (!CloseHandle((HANDLE)pio->stream.handle)) {
+					pio->stream.md_err = PIO_ERR_CLOSE;
+					pio->last_err_xstr = "'CloseHandle' returned FALSE (failure)";
+					pio->last_err_func = "sclose";
+					return false;
+				}
+			#else
+				if (close((int)pio->stream.handle) < 0) {
+					pio->stream.md_err = PIO_ERR_CLOSE;
+					pio->last_err_xstr = "'close' returned negative value (failure)";
+					pio->last_err_func = "sclose";
+					return false;
+				}
+			#endif
+			break;
+		}
+
+		case PSTREAM_TYPE_DIR: {
+			#if defined(_WIN32)
+				if (!FindClose((HANDLE)pio->stream.handle)) {
+					pio->stream.md_err = PIO_ERR_CLOSE;
+					pio->last_err_xstr = "'FindClose' returned FALSE (failure)";
+					pio->last_err_func = "sclose";
+					return false;
+				}
+			#else
+				if (closedir((DIR*)pio->stream.handle) < 0) {
+					pio->stream.md_err = PIO_ERR_CLOSE;
+					pio->last_err_xstr = "'close' returned negative value (failure)";
+					pio->last_err_func = "sclose";
+					return false;
+				}
+			#endif
+			break;
+		}
+
+		default: {
+			pio->stream.md_err = PIO_ERR_CLOSE;
+            pio->last_err_xstr = "Unknown stream type";
+			pio->last_err_func = "sclose";
+			return false;
+		}
+	}
 
     if (pio->stream.buf) dealloc(pio->stream.buf);
     dealloc(pio);
+
+	return true;
 }
 
 __IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size) {
     if (!pio || !buffer || size == 0) return 0;
 
-    #ifdef _WIN32
+    #if defined(_WIN32)
         DWORD read = 0;
         if (!ReadFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &read, PNULL)) {
 			if (GetLastError() == ERROR_IO_PENDING) goto success;
@@ -230,7 +384,7 @@ __IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size) {
 __IFN usize_t swrite(PIO_Stream* pio, const void* buffer, usize_t size) {
     if (!pio || !buffer || size == 0) return 0;
 
-    #ifdef _WIN32
+    #if defined(_WIN32)
         DWORD written = 0;
         if (!WriteFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &written, PNULL)) {
 			if (GetLastError() == ERROR_IO_PENDING) goto success;
@@ -258,34 +412,62 @@ __IFN bool sseek(PIO_Stream* pio, long offset, int origin) {
     if (!pio) return false;
 	uoff_t fpos = 0;
 	
-    #ifdef _WIN32
-        LARGE_INTEGER li;
-        li.QuadPart = offset;
+	switch(pio->stream.type) {
+		case PSTREAM_TYPE_FILE: {
+			#if defined(_WIN32)
+				LARGE_INTEGER li;
+				li.QuadPart = offset;
 
-		DWORD pos = SetFilePointerEx((HANDLE)pio->stream.handle, li, PNULL, origin);
-        if (pos == INVALID_SET_FILE_POINTER) {
-			pio->stream.md_err = PIO_ERR_SEEK;
-            pio->last_err_xstr = "'SetFilePointerEx' failed";
-			pio->last_err_func = "sseek";
-            return false;
-        }
-    #else
-        long ret = lseek((int)pio->stream.handle, offset, origin);
-        if (ret < 0) {
-			pio->stream.md_err = PIO_ERR_SEEK;
-            pio->last_err_xstr = "'lseek' returned negative value";
-			pio->last_err_func = "sseek";
-            return false;
-        }
-    #endif
+				DWORD pos = SetFilePointerEx((HANDLE)pio->stream.handle, li, PNULL, origin);
+				if (pos == INVALID_SET_FILE_POINTER) {
+					pio->stream.md_err = PIO_ERR_SEEK;
+					pio->last_err_xstr = "'SetFilePointerEx' failed";
+					pio->last_err_func = "sseek";
+					return false;
+				}
+			#else
+				long ret = lseek((int)pio->stream.handle, offset, origin);
+				if (ret < 0) {
+					pio->stream.md_err = PIO_ERR_SEEK;
+					pio->last_err_xstr = "'lseek' returned negative value";
+					pio->last_err_func = "sseek";
+					return false;
+				}
+			#endif
+			break;
+		}
 
+		case PSTREAM_TYPE_DIR: {
+			#if defined(_WIN32)
+				LARGE_INTEGER li;
+				li.QuadPart = offset;
 
-	pio->stream.filepos;
+				DWORD pos = SetFilePointerEx((HANDLE)pio->stream.handle, li, PNULL, origin);
+				if (pos == INVALID_SET_FILE_POINTER) {
+					pio->stream.md_err = PIO_ERR_SEEK;
+					pio->last_err_xstr = "'SetFilePointerEx' failed";
+					pio->last_err_func = "sseek";
+					return false;
+				}
+			#else
+				long ret = seekdir((int)pio->stream.handle, offset, origin);
+				if (ret < 0) {
+					pio->stream.md_err = PIO_ERR_SEEK;
+					pio->last_err_xstr = "'lseek' returned negative value";
+					pio->last_err_func = "sseek";
+					return false;
+				}
+			#endif
+			break;
+		}
+	}
+
+	return true;
 }
 
 __IFN len_t stell(PIO_Stream* pio) {
     if (!pio) return (len_t)-1;
-    #ifdef _WIN32
+    #if defined(_WIN32)
         LARGE_INTEGER pos;
         pos.QuadPart = 0;
         DWORD out = SetFilePointerEx((HANDLE)pio->stream.handle, pos, &pos, FILE_CURRENT);
@@ -343,6 +525,7 @@ __IFN const char* slast_err_msg(PIO_Stream* pio) {
         case PIO_ERR_UNK: return "Unknown reason";
         case PIO_ERR_EOF: return "End of File (EOF)";
         case PIO_ERR_OPEN: return "Stream could not be opened";
+		case PIO_ERR_CLOSE: return "Stream could not be closed";
         case PIO_ERR_READ: return "Stream could not be read from";
         case PIO_ERR_WRITE: return "Stream could not be written to";
         case PIO_ERR_SEEK: return "Stream seek failed";
@@ -361,7 +544,7 @@ __IFN const char* slast_xerr_msg(PIO_Stream* pio, const char** xmsg, const char*
 
 __IFN int print(const char* str, usize_t size) {
     if (!str) return -1;
-    #ifdef _WIN32
+    #if defined(_WIN32)
         if (PStdoutStream->stream.handle == INVALID_HANDLE_VALUE) return -2;
         int chars_written;
         WriteConsole(PStdoutStream->stream.handle, str, size, &chars_written, PNULL);

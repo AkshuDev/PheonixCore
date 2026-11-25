@@ -43,13 +43,6 @@ char* str = (char*)PNULL;
     #define __PARCH__ unknown
 #endif
 
-#if defined(__linux__)
-    #include <sys/mman.h>
-#elif defined(_WIN32)
-    #include <memoryapi.h>
-    #include <winnt.h>
-#endif
-
 #define __PHM_HDR_FLAG_ALLOCATED__ (1 << 0)
 #define __PHM_HDR_FLAG_AUTO_FREE__ (1 << 1)
 
@@ -184,14 +177,25 @@ PStreamFlags: Pheonix Stream Flags
 Provides the Flags for PStream
 */
 typedef enum {
-    PSTREAM_FLAG_READ = 1 << 0, // Read
-    PSTREAM_FLAG_WRITE = 1 << 1, // Write
-    PSTREAM_FLAG_EXEC = 1 << 2, // Execute
-    PSTREAM_FLAG_APPEND = 1 << 3, // Append
-    PSTREAM_FLAG_EOF = 1 << 4, // End Of File
-    PSTREAM_FLAG_ERR = 1 << 5, // Error
-    PSTREAM_FLAG_BINARY = 1 << 6, // Binary
+	PSTREAM_FLAG_NONE = 0, // None
+    PSTREAM_FLAG_READ = (1 << 0), // Read
+    PSTREAM_FLAG_WRITE = (1 << 1), // Write
+    PSTREAM_FLAG_EXEC = (1 << 2), // Execute
+    PSTREAM_FLAG_APPEND = (1 << 3), // Append
+    PSTREAM_FLAG_EOF = (1 << 4), // End Of File
+    PSTREAM_FLAG_ERR = (1 << 5), // Error
+    PSTREAM_FLAG_BINARY = (1 << 6), // Binary
 } PStreamFlags;
+
+/*
+PStreamType: Pheonix Stream Type
+Provides the types for PStream
+*/
+typedef enum {
+	PSTREAM_TYPE_UNKOWN = 0, // Unknown type; usually error
+	PSTREAM_TYPE_FILE, // File
+	PSTREAM_TYPE_DIR, // Directory
+} PStreamType;
 
 /*
 PAllocMemoryTypes: Pheonix Allocation Memory Types
@@ -218,7 +222,10 @@ typedef struct {
     uoff_t writepos; // Current Writing position
     uoff_t filepos; // Current Logical File Position corresponding to the buffer
     ulen_t len; // Length of the internal buffer
-    PStreamFlags flags; // Flags
+    
+	PStreamFlags flags; // Flags
+	PStreamType type; // Type of stream
+
     u8* buf; // Internal buffer
     int md_err; // Meta Data: Stores Last Error
 } PStream;
@@ -396,15 +403,19 @@ __IFN int strncmp(const char* a, const char* b, usize_t size);
 
 /*
 String Find Character  -
-Find the specified occurance of the provided character and return the part of the string with that character and after it
+Find the specified occurrence of the provided character and return the part of the string with that character and after it
+
+Special Values for `occurrence`:
+	0: The first occurrence
+	<0: The last occurrence
 */
-__IFN const char* strfindc(const char* str, char c, usize_t occurance);
+__IFN const char* strfindc(const char* str, char c, size_t occurrence);
 
 /*
 String Split -
-Find the specified occurance of the provided character and return a new string of either the part before or after the character
+Find the specified occurrence of the provided character and return a new string of either the part before or after the character
 */
-__IFN char* strsplit(const char* str, char c, usize_t occurance, bool first_part);
+__IFN char* strsplit(const char* str, char c, usize_t occurrence, bool first_part);
 
 /*
 Retrieve Environment -

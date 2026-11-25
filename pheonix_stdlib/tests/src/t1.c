@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
     print("[syscall] pressure...\n", 23);
 
     for (int i = 0; i < 1000; i++) {
-        #ifdef __linux__
+        #if defined(__linux__)
             __plib_syscall(39); // getpid (safe syscall spam)
         #endif
     }

@@ -3,6 +3,13 @@
 #define __IPSTDLIB_BUILD
 #include <pstdlib.h>
 
+#if defined(__linux__)
+    #include <sys/mman.h>
+#elif defined(_WIN32)
+    #include <memoryapi.h>
+    #include <winnt.h>
+#endif
+
 static char** env_vars = PNULL;
 static size_t env_count = 0;
 
@@ -342,7 +349,7 @@ __IFN int strncmp(const char* a, const char* b, usize_t size) {
     return cmpbuf(a, b, min(min(n1, n2), size));
 }
 
-__IFN const char* strfindc(const char* str, char c, usize_t occurance) {
+__IFN char* strsplit(const char* str, char c, usize_t occurrence, bool first_part) {
 	if (!str) return PNULL;
 
     usize_t n = strlen(str);
@@ -354,27 +361,7 @@ __IFN const char* strfindc(const char* str, char c, usize_t occurance) {
         cstr = (char*)(str + i);
         if (str[i] == c) {
             coccur++;
-            if (occurance == 0 || coccur == occurance) {
-                return cstr;
-            }
-        }
-    }
-    return PNULL;
-}
-
-__IFN char* strsplit(const char* str, char c, usize_t occurance, bool first_part) {
-	if (!str) return PNULL;
-
-    usize_t n = strlen(str);
-    usize_t coccur = 0;
-
-    const char* cstr = str;
-
-    for (usize_t i = 0; i < n; i++) {
-        cstr = (char*)(str + i);
-        if (str[i] == c) {
-            coccur++;
-            if (occurance == 0 || coccur == occurance) {
+            if (occurrence == 0 || coccur == occurrence) {
                 usize_t s = first_part ? i + 2 : n - (i + 2);
                 if (s == 0) return PNULL;
                 char* split = alloc(s);

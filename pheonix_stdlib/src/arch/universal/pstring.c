@@ -125,3 +125,30 @@ __IFN usize_t strlen(const char* str) {
     while (*s) s++;
     return s - str;
 }
+
+__IFN const char* strfindc(const char* str, char c, size_t occurrence) {
+	if (!str) return PNULL;
+
+    usize_t n = strlen(str);
+    usize_t coccur = 0;
+
+	const char* last_occur = PNULL;
+    const char* cstr = str;
+
+    for (usize_t i = 0; i < n; i++) {
+        cstr = (const char*)(str + i);
+        if (str[i] == c) {
+			last_occur = cstr;
+            coccur++;
+
+			if (occurrence < 0) continue;
+
+            if ((usize_t)occurrence == 0 || coccur == (usize_t)occurrence) {
+                return cstr;
+            }
+        }
+    }
+
+	if (occurrence < 0) return last_occur;
+    return PNULL;
+}

@@ -128,3 +128,111 @@ __IFN usize_t strlen(const char* str) {
 
     return len;
 }
+
+/*
+! Function is not yet complete for use
+
+__IFN const char* strfindc(const char* str, char c, size_t occurrence) {
+	if (!str) return PNULL;
+
+	while ((uptr_t)str & 0xF) {
+        if (!*str) return NULL;
+        if (*str == c) {
+            if (occurrence == 0) return str;
+            occurrence--;
+        }
+        str++;
+    }
+
+    const char* res = PNULL;
+	__asm__ volatile(
+		// make sure xmm1 contains the search character in every byte
+		"movd %[c], %%xmm1\n\t"
+		"punpcklbw %%xmm1, %xmm1\n\t"
+		"punpcklwd %%xmm1, %xmm1\n\t"
+		"pshufd $0, %%xmm1, %%xmm1\n\t"
+        "pxor %%xmm2, %%xmm2\n\t"
+
+        "1:\n\t"
+		// Load and compare 16 bytes at once
+        "movdqa (%[str]), %%xmm0\n\t"
+        "movdqa %%xmm0, %%xmm3\n\t"
+        "pcmpeqb %%xmm1, %%xmm3\n\t"
+        "pmovmskb %%xmm3, %%eax\n\t"
+
+		// Check for NULL terminator
+        "pcmpeqb %%xmm2, %%xmm0\n\t"
+        "pmovmskb %%xmm0, %%edx\n\t"
+        "test %%edx, %%edx\n\t"
+        "jz 2f\n\t"
+
+		// Enumerate matches
+        "bsf %%edx, %%ecx\n\t"
+        "mov $1, %%edx\n\t"
+        "shl %%cl, %%edx\n\t"
+        "dec %%edx\n\t"
+        "and %%edx, %%eax\n\t"
+
+        "2:\n\t"
+        "test %%eax, %%eax\n\t"
+        "jz 4f\n\t"
+		
+        "3:\n\t"
+        "bsf %%eax, %%ecx\n\t"
+        "test %[occ], %[occ]\n\t"
+        "jz 5f\n\t"
+        "dec %[occ]\n\t"
+        "lea -1(%%eax), %%edx\n\t"
+        "and %%edx, %%eax\n\t"
+        "jnz 3b\n\t"
+
+        "4:\n\t"
+        "test %%edx, %%edx\n\t"
+        "jnz 6f\n\t"
+        "add $16, %[str]\n\t"
+        "jmp 1b\n\t"
+
+        "5:\n\t"
+		// Found it
+        "lea (%[str],%%rcx), %[res]\n\t"
+        "jmp 6f\n\t"
+
+        "6:\n\t"
+        :
+		[str] "+r" (str), [occ] "+r" (occurrence), [res] "=r" (res)
+        :
+		[c] "r" ((u32)(u8)c)
+        :
+		"rax", "rdx", "rcx", "xmm0", "xmm1", "xmm2", "xmm3", "cc", "memory"
+	);
+
+	return res;
+}
+*/
+
+__IFN const char* strfindc(const char* str, char c, size_t occurrence) {
+	if (!str) return PNULL;
+
+    usize_t n = strlen(str);
+    usize_t coccur = 0;
+
+	const char* last_occur = PNULL;
+    const char* cstr = str;
+
+    for (usize_t i = 0; i < n; i++) {
+        cstr = (const char*)(str + i);
+        if (str[i] == c) {
+			last_occur = cstr;
+            coccur++;
+
+			if (occurrence < 0) continue;
+
+            if ((usize_t)occurrence == 0 || coccur == (usize_t)occurrence) {
+                return cstr;
+            }
+        }
+    }
+
+	if (occurrence < 0) return last_occur;
+    return PNULL;
+}
