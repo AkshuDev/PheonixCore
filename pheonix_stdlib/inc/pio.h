@@ -28,14 +28,48 @@ typedef enum {
     PIO_ERR_READ, // Error while reading
     PIO_ERR_WRITE, // Error while writing
     PIO_ERR_SEEK, // Error while seeking
+	PIO_ERR_MD, // Error while retrieving file metadata
     PIO_ERR_EOF, // Unexpected End Of File
     PIO_ERR_UNK // Unknown cause of Error
 } PIO_Errors;
 
 /*
+Pheonix I/O File Metadata - Stores metadata of a file
+*/
+typedef struct {
+	bool valid; // Is the structure valid and filled
+
+	u64 creation_time; // The time of creation of the file (UNIX Timestamp)
+	u64 modified_time; // The time of modification of the file (UNIX Timestamp)
+	u64 last_access_time; // The time of the last access of the fiel (UNIX Timestamp)
+
+	ulen_t file_size; // The size of the file in bytes
+} PIO_FileMD;
+
+/*
+Pheonix I/O String Metadata - Stores metadata of a string
+*/
+typedef struct {
+	bool valid; // Is the structure valid and filled
+	ulen_t string_size; // The size of the string buffer in bytes
+} PIO_StringMD;
+
+/*
+Pheonix I/O Directory Entry - Stores entry of a directory
+*/
+typedef struct {
+    const char* name; // Name of the file
+} PIO_DirectoryEntry;
+
+/*
 Pheonix I/O Stream - allows usage of proper debug during IO usage
 */
 typedef struct {
+	union {
+		PIO_FileMD file_md;
+		PIO_StringMD string_md;
+	};
+
     PStream stream; // Stream
 	const char* last_err_xstr; // eXtended information in the from of string, of the last error
 	const char* last_err_func; // The name of the function where the last error occured
@@ -56,14 +90,41 @@ Initializes Basic Streams for Operating systems with varying stream handles such
 __IFN void __pio_init_streams(void);
 
 /*
+sfile_md - Stream File Metadata
+Requests metadata for specified file (path if `s` is NULL, else uses the specified stream), and writes it in `out` in the form of `PIO_FileMD` structure.
+
+Returns true if succesfull and false if failed.
+
+NOTE: Does not register errors for `get_lasterror` and such functions due to variable usage between stream and path.
+*/
+__IFN bool sfile_md(const char* path, PIO_FileMD* out, PIO_Stream* s);
+
+/*
 sopen_file - Stream Open File
 Opens a file at the given path with specified PStreamFlags (Read, Write, etc). Returns a pointer to a PIO_Stream, or NULL if opening fails
 */
 __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags);
 
 /*
+sopen_dir - Stream Open Directory
+Opens a directory at the given path. Returns a pointer to a PIO_Stream, or NULL if opening fails
+*/
+__IFN PIO_Stream* sopen_dir(const char* path);
+
+/*
+sopen_string - Stream Open String
+Creates a string stream with the given metadata. Returns a pointer to a PIO_Stream, or NULL if creation fails
+*/
+__IFN PIO_Stream* sopen_string(char* str, usize_t size, PStreamFlags flags);
+
+/*
 sclose - Stream Close
 Closes the provided PIO_Stream and releases any allocated resources
+
+Supported Stream Types:
+1. File
+2. Directory
+3. String
 */
 __IFN bool sclose(PIO_Stream* pio);
 
@@ -71,6 +132,15 @@ __IFN bool sclose(PIO_Stream* pio);
 sread - Stream Read
 Reads `size` bytes from the PIO_Stream into the given buffer
 Returns the number of bytes successfully read
+
+Supported Stream Types:
+1. File
+2. <DIRECTORY UNDER DEVELOPMENT, USAGE DISALLOWED FOR NOW>
+3. String
+
+Special Cases:
+
+1. If stream is a directory stream, then `buffer` should point to `PIO_DirectoryEntry` Structure and `size` should strictly be the size of `PIO_DirectoryEntry` structure.
 */
 __IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size);
 
@@ -78,18 +148,29 @@ __IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size);
 swrite - Stream Write
 Writes `size` bytes from the buffer to the PIO_Stream
 Returns the number of bytes successfully written
+
+Supported Stream Types:
+1. File
+2. String
 */
 __IFN usize_t swrite(PIO_Stream* pio, const void* buffer, usize_t size);
 
 /*
 sseek - Stream Seek
 Moves the internal file pointer of the PIO_Stream based on offset and origin (SEEK_SET, SEEK_CUR, SEEK_END). Returns true on success, false on failure
+
+Supported Stream Types:
+1. File
+2. <DIRECTORY UNDER DEVELOPMENT, USAGE DISALLOWED FOR NOW>
+3. String
 */
-__IFN bool sseek(PIO_Stream* pio, long offset, int origin);
+__IFN bool sseek(PIO_Stream* pio, len_t offset, int origin);
 
 /*
 stell - Stream Tell
 Returns the current position of the internal file pointer within the PIO_Stream. (negative if error)
+
+Supports all stream types
 */
 __IFN len_t stell(PIO_Stream* pio);
 
@@ -114,10 +195,22 @@ Writes a formatted string to the specified PIO_Stream. Returns the number of cha
 __IFN int fprints(PIO_Stream* pio, const char* format, ...);
 
 /*
-print - Formatted Print
+fprint - Formatted Print
 Writes a formatted string to stdout stream. Returns the number of characters written or a negative value on error
 */
-#define fprint(format, ...) fprints(s_stdout, format, ##__VA_ARGS__)
+#define fprint(format, ...) fprints((s_stdout), (format), ##__VA_ARGS__)
+
+/*
+fmsprint - Formatted Max String Print
+Writes a formatted string to another string obeying a max size. Returns the number of characters written or a negative value on error
+*/
+__IFN int fmsprint(char* dst, usize_t max_size, const char* format, ...);
+
+/*
+fsprint - Formatted String Print
+Writes a formatted string to another string. Returns the number of characters written or a negative value on error
+*/
+#define fsprint(dst, format, ...) fmsprint((dst), (dst) ? strlen((dst)) : 0, (format), ##__VA_ARGS__)
 
 /*
 print - Formatted Print to Standard Output

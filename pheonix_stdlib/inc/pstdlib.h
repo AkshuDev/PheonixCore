@@ -180,11 +180,11 @@ typedef enum {
 	PSTREAM_FLAG_NONE = 0, // None
     PSTREAM_FLAG_READ = (1 << 0), // Read
     PSTREAM_FLAG_WRITE = (1 << 1), // Write
-    PSTREAM_FLAG_EXEC = (1 << 2), // Execute
-    PSTREAM_FLAG_APPEND = (1 << 3), // Append
-    PSTREAM_FLAG_EOF = (1 << 4), // End Of File
-    PSTREAM_FLAG_ERR = (1 << 5), // Error
-    PSTREAM_FLAG_BINARY = (1 << 6), // Binary
+    PSTREAM_FLAG_EXEC = (1 << 2), // Execute (Disallowed in streams of type: String)
+    PSTREAM_FLAG_APPEND = (1 << 3), // Append (Disallowed in streams of type: String)
+    PSTREAM_FLAG_EOF = (1 << 4), // End Of File (Disallowed in streams of type: String)
+    PSTREAM_FLAG_ERR = (1 << 5), // Error (Disallowed in streams of type: String)
+    PSTREAM_FLAG_BINARY = (1 << 6), // Binary (Disallowed in streams of type: String)
 } PStreamFlags;
 
 /*
@@ -192,9 +192,10 @@ PStreamType: Pheonix Stream Type
 Provides the types for PStream
 */
 typedef enum {
-	PSTREAM_TYPE_UNKOWN = 0, // Unknown type; usually error
+	PSTREAM_TYPE_UNKNOWN = 0, // Unknown type; usually error
 	PSTREAM_TYPE_FILE, // File
 	PSTREAM_TYPE_DIR, // Directory
+	PSTREAM_TYPE_STRING, // String (yes, strings)
 } PStreamType;
 
 /*
@@ -217,11 +218,14 @@ Provides a unified interface for reading, writing, and seeking
 across various data sources such as files, memory buffers, or network streams.
 */
 typedef struct {
-    uptr_t handle; // Internal Stream Handle
-    uoff_t readpos; // Current Reading position
-    uoff_t writepos; // Current Writing position
-    uoff_t filepos; // Current Logical File Position corresponding to the buffer
-    ulen_t len; // Length of the internal buffer
+    ptr_t handle; // Internal Stream Handle
+	
+    len_t readpos; // Current Reading position
+    len_t writepos; // Current Writing position
+    len_t filepos; // Current File Position
+	len_t sfilepos; // Current System File Position (Changed via system calls only)
+    
+	ulen_t len; // Length of the internal buffer
     
 	PStreamFlags flags; // Flags
 	PStreamType type; // Type of stream
@@ -237,8 +241,12 @@ Reserved for Memory Allocation uses
 struct PHM_Hdr {
     usize_t size; // Size of allocation
     u32 flags; // 32-bit Flags
+
     usize_t auto_free_idx; // Auto free idx (if auto_free == true)
     struct PHM_Hdr* next; // Next linked allocation
+	struct PHM_Hdr* prev; // Previous linked allocation
+	struct PHM_Hdr* root; // Root linked allocation
+
     usize_t next_count; // Number of linked allocations
 };
 
@@ -322,7 +330,7 @@ __IFN void* alloc(usize_t size);
 /* De Alloc -
 Deallocate the heap Allocated Memory
 */
-__IFN bool dealloc(void* ptr);
+__IFN void dealloc(void* ptr);
 
 /*
 Zeroed Memory Allocation -
@@ -409,7 +417,7 @@ Special Values for `occurrence`:
 	0: The first occurrence
 	<0: The last occurrence
 */
-__IFN const char* strfindc(const char* str, char c, size_t occurrence);
+__IFN const char* strfindc(const char* str, char c, psize_t occurrence);
 
 /*
 String Split -
@@ -441,28 +449,28 @@ int_to_str: Int to String
 
 Convert an integer of size 4 bytes or 32 bits to string
 */
-#define int_to_str(v, buf, base) i64_to_str((int)v, buf, base)
+#define int_to_str(v, buf, base) i64_to_str((int)(v), (buf), (base))
 
 /*
 i32_to_str: Int 32 to String
 
 Convert an integer of size 4 bytes or 32 bits to string
 */
-#define i32_to_str(v, buf, base) i64_to_str((i32)v, buf, base)
+#define i32_to_str(v, buf, base) i64_to_str((i32)(v), (buf), (base))
 
 /*
 i16_to_str: Int 16 to String
 
 Convert an integer of size 2 bytes or 16 bits to string
 */
-#define i16_to_str(v, buf, base) i64_to_str((i16)v, buf, base)
+#define i16_to_str(v, buf, base) i64_to_str((i16)(v), (buf), (base))
 
 /*
 i8_to_str: Int 8 to String
 
 Convert an integer of size 1 bytes or 8 bits to string
 */
-#define i8_to_str(v, buf, base) i64_to_str((i8)v, buf, base)
+#define i8_to_str(v, buf, base) i64_to_str((i8)(v), (buf), (base))
 
 /*
 u64_to_str: Unsigned Int 64 to String
@@ -476,28 +484,28 @@ uint_to_str: Unsigned Int to String
 
 Convert an unsigned integer of size 4 bytes or 32 bits to string
 */
-#define uint_to_str(v, buf, base) u64_to_str((uint)v, buf, base)
+#define uint_to_str(v, buf, base) u64_to_str((uint)(v), (buf), (base))
 
 /*
 u32_to_str: Unsigned Int 32 to String
 
 Convert an unsigned integer of size 4 bytes or 32 bits to string
 */
-#define u32_to_str(v, buf, base) u64_to_str((u32)v, buf, base)
+#define u32_to_str(v, buf, base) u64_to_str((u32)(v), (buf), (base))
 
 /*
 u16_to_str: Unsigned Int 16 to String
 
 Convert an unsigned integer of size 2 bytes or 16 bits to string
 */
-#define u16_to_str(v, buf, base) u64_to_str((u16)v, buf, base)
+#define u16_to_str(v, buf, base) u64_to_str((u16)(v), (buf), (base))
 
 /*
 u8_to_str: Unsigned Int 8 to String
 
 Convert an unsigned integer of size 1 bytes or 8 bits to string
 */
-#define u8_to_str(v, buf, base) u64_to_str((u8)v, buf, base)
+#define u8_to_str(v, buf, base) u64_to_str((u8)(v), (buf), (base))
 
 /*
 double_to_str: double to String
@@ -511,7 +519,7 @@ float_to_str: float to String
 
 Convert a float to string
 */
-#define float_to_str(v, buf, precision) double_to_str((float)v, buf, precision)
+#define float_to_str(v, buf, precision) double_to_str((float)(v), (buf), (precision))
 
 /*
 Character to Digit
@@ -531,28 +539,28 @@ str_to_int: String to Int
 
 Convert a string to an integer of size 4 bytes or 32 bits
 */
-#define str_to_int(str, base) (int)str_to_i64(str, base)
+#define str_to_int(str, base) (int)str_to_i64((str), (base))
 
 /*
 str_to_i32: String to Int 32
 
 Convert a string to an integer of size 4 bytes or 32 bits
 */
-#define str_to_i32(str, base) (i32)str_to_i64(str, base)
+#define str_to_i32(str, base) (i32)str_to_i64((str), (base))
 
 /*
 str_to_i16: String to Int 16
 
 Convert a string to an integer of size 2 bytes or 16 bits
 */
-#define str_to_i16(str, base) (i16)str_to_i64(str, base)
+#define str_to_i16(str, base) (i16)str_to_i64((str), (base))
 
 /*
 str_to_i8: String to Int 8
 
 Convert a string to an integer of size 1 bytes or 8 bits
 */
-#define str_to_i8(str, base) (i8)str_to_i64(str, base)
+#define str_to_i8(str, base) (i8)str_to_i64((str), (base))
 
 /*
 str_to_u64: String to Unsigned Int 64
@@ -566,28 +574,28 @@ str_to_uint: String to Unsigned Int
 
 Convert a string to an unsigned integer of size 4 bytes or 32 bits
 */
-#define str_to_uint(str, base) (uint)str_to_u64(str, base)
+#define str_to_uint(str, base) (uint)str_to_u64((str), (base))
 
 /*
 str_to_u32: String to Unsigned Int 32
 
 Convert a string to an unsigned integer of size 4 bytes or 32 bits
 */
-#define str_to_u32(str, base) (u32)str_to_u64(str, base)
+#define str_to_u32(str, base) (u32)str_to_u64((str), (base))
 
 /*
 str_to_u16: String to Unsigned Int 16
 
 Convert a string to an unsigned integer of size 2 bytes or 16 bits
 */
-#define str_to_u16(str, base) (u16)str_to_u64(str, base)
+#define str_to_u16(str, base) (u16)str_to_u64((str), (base))
 
 /*
 str_to_u8: String to Unsigned Int 8
 
 Convert a string to an unsigned integer of size 1 bytes or 8 bits
 */
-#define str_to_u8(str, base) (u8)str_to_u64(str, base)
+#define str_to_u8(str, base) (u8)str_to_u64((str), (base))
 
 /*
 str_to_double: String to double
@@ -601,7 +609,7 @@ str_to_float: String to float
 
 Convert a string to an float
 */
-#define str_to_float(str) (float)str_to_double(str)
+#define str_to_float(str) (float)str_to_double((str))
 
 /*
 c_is_alpha: Character is Alphabetical
@@ -655,55 +663,55 @@ __IFN i64 append_i64(i64 a, i64 b);
 Append Int
 Decimal Concatinates the 2 specified arguments, and returns them.
 */
-#define append_int(a, b) (int)append_i64((i64)((int)a), (i64)((int)b));
+#define append_int(a, b) (int)append_i64((i64)((int)(a)), (i64)((int)(b)))
 
 /*
 Append Int 32
 Decimal Concatinates the 2 specified arguments, and returns them.
 */
-#define append_i32(a, b) (i32)append_i64((i64)((i32)a), (i64)((i32)b));
+#define append_i32(a, b) (i32)append_i64((i64)((i32)(a)), (i64)((i32)(b)))
 
 /*
 Append Int 16
 Decimal Concatinates the 2 specified arguments, and returns them.
 */
-#define append_i16(a, b) (i16)append_i64((i64)((i16)a), (i64)((i16)b));
+#define append_i16(a, b) (i16)append_i64((i64)((i16)(a)), (i64)((i16)(b)))
 
 /*
 Append Int 8
 Decimal Concatinates the 2 specified arguments, and returns them.
 */
-#define append_i8(a, b) (i8)append_i64((i64)((i8)a), (i64)((i8)b));
+#define append_i8(a, b) (i8)append_i64((i64)((i8)(a)), (i64)((i8)(b)))
 
 /*
 Append Unsigned Int 64
 Decimal Concatinates the 2 specified arguments, and returns them.
 */
-#define append_u64(a, b) (u64)append_i64((i64)((u64)a), (i64)((u64)b));
+#define append_u64(a, b) (u64)append_i64((i64)((u64)(a)), (i64)((u64)(b)))
 
 /*
 Append Unsigned Int
 Decimal Concatinates the 2 specified arguments, and returns them.
 */
-#define append_uint(a, b) (uint)append_i64((i64)((uint)a), (i64)((uint)b));
+#define append_uint(a, b) (uint)append_i64((i64)((uint)(a)), (i64)((uint)(b)))
 
 /*
 Append Unsigned Int 32
 Decimal Concatinates the 2 specified arguments, and returns them.
 */
-#define append_u32(a, b) (u32)append_i64((i64)((u32)a), (i64)((u32)b));
+#define append_u32(a, b) (u32)append_i64((i64)((u32)(a)), (i64)((u32)(b)))
 
 /*
 Append Unsigned Int 16
 Decimal Concatinates the 2 specified arguments, and returns them.
 */
-#define append_u16(a, b) (u16)append_i64((i64)((u16)a), (i64)((u16)b));
+#define append_u16(a, b) (u16)append_i64((i64)((u16)(a)), (i64)((u16)(b)))
 
 /*
 Append Unsigned Int 8
 Decimal Concatinates the 2 specified arguments, and returns them.
 */
-#define append_u8(a, b) (u8)append_i64((i64)((u8)a), (i64)((u8)b));
+#define append_u8(a, b) (u8)append_i64((i64)((u8)(a)), (i64)((u8)(b)))
 
 /*
 Append Exit Functions -

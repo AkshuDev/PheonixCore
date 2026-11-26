@@ -126,7 +126,7 @@ __IFN usize_t strlen(const char* str) {
     return s - str;
 }
 
-__IFN const char* strfindc(const char* str, char c, size_t occurrence) {
+__IFN const char* strfindc(const char* str, char c, psize_t occurrence) {
 	if (!str) return PNULL;
 
     usize_t n = strlen(str);

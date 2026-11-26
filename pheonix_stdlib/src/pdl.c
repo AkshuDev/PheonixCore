@@ -1,4 +1,6 @@
 // Pheonix Dynamic Loader C Source Code
+#ifdef __IPSTDLIB_ALLOW_DEV
+
 #define __IPSTDLIB_BUILD
 #include <pdl.h>
 
@@ -388,3 +390,5 @@ __IFN PDLHandle pdl_open(const char* path, PDLOpenModes mode, PDLOpenFlags flags
 		return PDL_INVALID_HANDLE;
 	}
 }
+
+#endif

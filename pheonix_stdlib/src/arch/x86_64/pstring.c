@@ -22,10 +22,10 @@ __IFN bool fillbuf(void* buf, byte_t value, usize_t size) {
     if (!buf) return false;
 	if (size == 0) return true;
 
-	size_t remaining = size;
+	usize_t remaining = size;
 	void* ptr = buf;
 	if (size >= 8) {
-		size_t size = remaining / 8;
+		usize_t size = remaining / 8;
 		
 		u8 byte = (u8)value;
 		u64 pattern = 0x0101010101010101ULL * byte;
@@ -111,7 +111,7 @@ __IFN int cmpbuf(const void* a, const void* b, usize_t size) {
 __IFN usize_t strlen(const char* str) {
 	if (!str) return 0;
 
-    size_t len;
+    usize_t len;
 
     __asm__ volatile(
         "cld\n\t"
@@ -132,7 +132,7 @@ __IFN usize_t strlen(const char* str) {
 /*
 ! Function is not yet complete for use
 
-__IFN const char* strfindc(const char* str, char c, size_t occurrence) {
+__IFN const char* strfindc(const char* str, char c, usize_t occurrence) {
 	if (!str) return PNULL;
 
 	while ((uptr_t)str & 0xF) {
@@ -210,7 +210,7 @@ __IFN const char* strfindc(const char* str, char c, size_t occurrence) {
 }
 */
 
-__IFN const char* strfindc(const char* str, char c, size_t occurrence) {
+__IFN const char* strfindc(const char* str, char c, psize_t occurrence) {
 	if (!str) return PNULL;
 
     usize_t n = strlen(str);

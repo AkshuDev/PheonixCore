@@ -179,11 +179,18 @@ __IFN void* exalloc(usize_t size, uint_t type, void* link, bool auto_free) {
     struct PHM_Hdr* hdr = (struct PHM_Hdr*)ptr;
     hdr->size = size;
     hdr->flags = auto_free ? __PHM_HDR_FLAG_AUTO_FREE__ | __PHM_HDR_FLAG_ALLOCATED__ : __PHM_HDR_FLAG_ALLOCATED__;
-    hdr->next = link ? (struct PHM_Hdr*)((ubyte_t*)link - sizeof(struct PHM_Hdr)) : PNULL;
     hdr->auto_free_idx = 0;
     hdr->next_count = 0;
-    if (link)
-        hdr->next_count = 1;
+	hdr->root = hdr;
+    
+	if (link) {
+		struct PHM_Hdr* lhdr = (struct PHM_Hdr*)((u8*)link - sizeof(struct PHM_Hdr));
+        lhdr->next = hdr;
+		hdr->root = lhdr->root ? lhdr->root : hdr;
+		hdr->prev = lhdr;
+
+		lhdr->next_count++;
+	}
 
     void* rptr = (void*)((ubyte_t*)ptr + sizeof(struct PHM_Hdr));
     if (auto_free) {
@@ -224,12 +231,11 @@ __IFN void* alloc(usize_t size) {
     return exalloc(size, ALLOC_MEMTYPE_READ | ALLOC_MEMTYPE_WRITE, PNULL, true);
 }
 
-__IFN bool dealloc(void* ptr) {
-    if (!ptr) return false;
-    struct PHM_Hdr* hdr = (struct PHM_Hdr*)((u8*)ptr - sizeof(struct PHM_Hdr));
+static void _dealloc(void* ptr, struct PHM_Hdr* hdr) {
+    if (!hdr) return;
 
-    if (hdr->next && hdr->next_count > 0) dealloc(hdr->next);
-    if (!(hdr->flags & __PHM_HDR_FLAG_ALLOCATED__)) return false; // DeAllocated Probably
+	if (hdr->next_count > 0 && hdr->next) _dealloc((void*)((u8*)hdr->next + sizeof(struct PHM_Hdr)), hdr->next);
+    if (!(hdr->flags & __PHM_HDR_FLAG_ALLOCATED__)) return; // DeAllocated Probably
 
     if (hdr->flags & __PHM_HDR_FLAG_AUTO_FREE__) {
         // Add a free slot
@@ -246,11 +252,14 @@ __IFN bool dealloc(void* ptr) {
         munmap((void* )hdr, size); // Hdr already points to the starting pos
     #elif defined(_WIN32)
         VirtualFree((void* )hdr, size, MEM_RELEASE);
-    #else
-        return false;
     #endif
+}
 
-    return true;
+__IFN void dealloc(void* ptr) {
+	if (!ptr) return;
+
+	struct PHM_Hdr* hdr = (struct PHM_Hdr*)((u8*)ptr - sizeof(struct PHM_Hdr));
+    if (hdr->root && hdr->root != hdr) _dealloc(ptr, hdr->root);
 }
 
 __IFN void* zalloc(usize_t size) {
@@ -337,7 +346,10 @@ __IFN int strcmp(const char* a, const char* b) {
 
     usize_t n1 = strlen(a);
     usize_t n2 = strlen(b);
-    return cmpbuf(a, b, min(n1, n2));
+    
+	int cmp = cmpbuf(a, b, min(n1, n2));
+	if (cmp != 0) return cmp;
+    return (n1 > n2) - (n1 < n2);
 }
 
 __IFN int strncmp(const char* a, const char* b, usize_t size) {
@@ -346,7 +358,13 @@ __IFN int strncmp(const char* a, const char* b, usize_t size) {
 
     usize_t n1 = strlen(a);
     usize_t n2 = strlen(b);
-    return cmpbuf(a, b, min(min(n1, n2), size));
+	usize_t n = min(min(n1, n2), size);
+
+    int cmp = cmpbuf(a, b, n);
+    if (cmp != 0) return cmp;
+	
+    if (n == size) return 0;
+    return (n1 > n2) - (n1 < n2);
 }
 
 __IFN char* strsplit(const char* str, char c, usize_t occurrence, bool first_part) {

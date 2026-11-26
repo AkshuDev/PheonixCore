@@ -8,6 +8,8 @@
     #include <fcntl.h>
     #include <unistd.h>
 	#include <dirent.h>
+	#include <sys/stat.h>
+
     #define __lstdin 0
     #define __lstdout 1
     #define __lstderr 2
@@ -17,6 +19,7 @@
 	*/
 	PIO_Stream raw_PStdoutStream = {
 		.stream={
+			.type=PSTREAM_TYPE_FILE,
 			.handle=__lstdout,
 			.readpos=0,
 			.writepos=0,
@@ -35,6 +38,7 @@
 	*/
 	PIO_Stream raw_PStdinStream = {
 		.stream={
+			.type=PSTREAM_TYPE_FILE,
 			.handle=__lstdin,
 			.readpos=0,
 			.writepos=0,
@@ -53,6 +57,7 @@
 	*/
 	PIO_Stream raw_PStderrStream = {
 		.stream={
+			.type=PSTREAM_TYPE_FILE,
 			.handle=__lstderr,
 			.readpos=0,
 			.writepos=0,
@@ -67,12 +72,14 @@
 	};
 #elif defined(_WIN32)
     #include <windows.h>
+	#include <fileapi.h>
 
 	/*
 	Pheonix Standard Output Stream
 	*/
 	PIO_Stream raw_PStdoutStream = {
 		.stream={
+			.type=PSTREAM_TYPE_FILE,
 			.handle=-1,
 			.readpos=0,
 			.writepos=0,
@@ -91,6 +98,7 @@
 	*/
 	PIO_Stream raw_PStdinStream = {
 		.stream={
+			.type=PSTREAM_TYPE_FILE,
 			.handle=-1,
 			.readpos=0,
 			.writepos=0,
@@ -110,6 +118,7 @@
 	*/
 	PIO_Stream raw_PStderrStream = {
 		.stream={
+			.type=PSTREAM_TYPE_FILE,
 			.handle=-1,
 			.readpos=0,
 			.writepos=0,
@@ -128,6 +137,9 @@
 	#define PIO_STREAM_BUF_CAP 0x2000 // 8KB
 #endif
 
+#define WIN32_FILETIME_EPOCH_OFFSET 11644473600ULL
+#define WIN32_FILETIME_RESOLUTION 10000000ULL
+
 PIO_Stream* PStdoutStream = &raw_PStdoutStream;
 PIO_Stream* PStdinStream = &raw_PStdinStream;
 PIO_Stream* PStderrStream = &raw_PStderrStream;
@@ -140,6 +152,88 @@ __IFN void __pio_init_streams(void) {
     #endif
 }
 
+__IFN bool sfile_md(const char* path, PIO_FileMD* out, PIO_Stream* s) {
+	if ((!path && !s) || !out) return false;
+
+	PIO_FileMD ret = {0};
+
+	#if defined(_WIN32)
+		if (s) {
+			FILE_BASIC_INFO data = {0};
+			if (!GetFileInformationByHandleEx(p->stream.handle, FileBasicInfo, &data, sizeof(data))) return false;
+
+			ULARGE_INTEGER ull;
+
+			ull.LowPart = ((FILETIME)data.CreationTime).dwLowDateTime;
+			ull.HighPart = ((FILETIME)data.CreationTime).dwHighDateTime;
+			ret.creation_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+			
+			ull.LowPart = ((FILETIME)data.LastWriteTime).dwLowDateTime;
+			ull.HighPart = ((FILETIME)data.LastWriteTime).dwHighDateTime;
+			ret.modified_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+
+			ull.LowPart = ((FILETIME)data.LastAccessTime).dwLowDateTime;
+			ull.HighPart = ((FILETIME)data.LastAccessTime).dwHighDateTime;
+			ret.last_access_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+
+			FILE_STANDARD_INFO data2 = {0};
+			if (!GetFileInformationByHandleEx(p->stream.handle, FileStandardInfo, &data2, sizeof(data2))) return false;
+			ret.file_size = (u64)data2.EndOfFile.QuadPart;
+		} else {
+			WIN32_FILE_ATTRIBUTE_DATA data = {0};
+			if (!GetFileAttributesExA(path, GetFileExInfoStandard, &data)) return false;
+
+			ULARGE_INTEGER ull;
+
+			ull.LowPart = data.ftCreationTime.dwLowDateTime;
+			ull.HighPart = data.ftCreationTime.dwHighDateTime;
+			ret.creation_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+			
+			ull.LowPart = data.ftLastWriteTime.dwLowDateTime;
+			ull.HighPart = data.ftLastWriteTime.dwHighDateTime;
+			ret.modified_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+
+			ull.LowPart = data.ftLastAccessTime.dwLowDateTime;
+			ull.HighPart = data.ftLastAccessTime.dwHighDateTime;
+			ret.last_access_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+
+			ret.file_size = (((u64)data.nFileSizeHigh << 32) & 0xFFFFFFFF00000000ULL) | ((u64)data.nFileSizeLow & 0xFFFFFFFFULL);
+		}
+    #else
+		struct stat st;
+		if (s) {
+			#if __PARCH__ == x86_64
+				if (__plib_syscall(0x5, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st) < 0) return false;
+			#elif __PARCH__ == x86
+				if (__plib_syscall(0x6C, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st) < 0) return false;
+			#elif __PARCH__ == arm64
+				if (__plib_syscall(0x50, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st) < 0) return false;
+			#elif __PARCH__ == arm32
+				if (__plib_syscall(0x6C, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st) < 0) return false;
+			#endif
+		} else {
+			#if __PARCH__ == x86_64
+				if (__plib_syscall(0x4, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st) < 0) return false;
+			#elif __PARCH__ == x86
+				if (__plib_syscall(0x6A, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st) < 0) return false;
+			#elif __PARCH__ == arm64
+				if (__plib_syscall(0x4F, -100LL, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st, 0LL) < 0) return false;
+			#elif __PARCH__ == arm32
+				if (__plib_syscall(0x6A, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st) < 0) return false;
+			#endif
+		}
+
+		ret.creation_time = st.st_ctime;
+		ret.modified_time = st.st_mtime;
+		ret.last_access_time = st.st_atime;
+		ret.file_size = st.st_size;
+    #endif
+
+	*out = ret;
+	out->valid = true;
+	return true;
+}
+
 __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
     if (!path) return PNULL;
 
@@ -147,6 +241,8 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
     if (!pio) return PNULL;
 
     #if defined(_WIN32)
+		pio->stream.handle = INVALID_HANDLE_VALUE;
+
         DWORD access = 0;
         if (flags & PSTREAM_FLAG_READ) access |= GENERIC_READ;
         if (flags & PSTREAM_FLAG_WRITE) access |= GENERIC_WRITE;
@@ -189,14 +285,17 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
     pio->stream.readpos = 0;
     pio->stream.writepos = 0;
     pio->stream.filepos = 0;
+	pio->stream.sfilepos = 0;
     pio->stream.len = 0;
     pio->stream.flags = flags;
 	pio->stream.type = PSTREAM_TYPE_FILE;
     pio->stream.buf = PNULL;
 
+	sfile_md(PNULL, &pio->file_md, pio); // Could fail, but ignore error
     return pio;
 
 	error: {
+		//? There is no way a error occurs after file opening is complete
 		dealloc(pio);
         return PNULL;
 	}
@@ -237,6 +336,7 @@ __IFN PIO_Stream* sopen_dir(const char* path) {
     pio->stream.readpos = 0;
     pio->stream.writepos = 0;
     pio->stream.filepos = 0;
+	pio->stream.sfilepos = 0;
     pio->stream.flags = PSTREAM_FLAG_NONE;
 	pio->stream.type = PSTREAM_TYPE_DIR;
 
@@ -249,52 +349,28 @@ __IFN PIO_Stream* sopen_dir(const char* path) {
 	}
 }
 
-__IFN const char* sread_dir(PIO_Stream* pio) {
-	if (!pio) return PNULL;
+__IFN PIO_Stream* sopen_string(char* str, usize_t size, PStreamFlags flags) {
+	if (!str || size < 1) return PNULL;
 
-	#if defined(_WIN32)
-		if (pio->stream.len != sizeof(WIN32_FIND_DATAA) || !pio->stream.buf) {
-			pio->stream.md_err = PIO_ERR_READ;
-			pio->last_err_xstr = "Directory Stream's internal entry structure is either not-allocated or malformed";
-			pio->last_err_func = "sread_dir";
-			return PNULL;
-		}
-		WIN32_FIND_DATAA* dir = (WIN32_FIND_DATAA*)pio->stream.buf;
+	PIO_Stream* pio = (PIO_Stream*)zalloc(sizeof(PIO_Stream));
+    if (!pio) return PNULL;
 
-		if (pio->stream.handle != INVALID_HANDLE_VALUE) {
-			if (!FindNextFileA((HANDLE)pio->stream.handle, dir)) {
-				pio->stream.md_err = PIO_ERR_READ;
-				pio->last_err_xstr = "'FindNextFileA' returned FALSE (failure)";
-				pio->last_err_func = "sread_dir";
-				return PNULL;
-			}
-		} else {
-			HANDLE h = FindFirstFileA(path, dir);
-			if (h == INVALID_HANDLE_VALUE) {
-				pio->stream.md_err = PIO_ERR_READ;
-				pio->last_err_xstr = "'FindFirstFileA' returned an Invalid Handle";
-				pio->last_err_func = "sread_dir";
+	pio->last_err_xstr = PNULL;
+	pio->last_err_func = PNULL;
+	pio->stream.md_err = PIO_ERR_NONE;
+    pio->stream.readpos = 0;
+    pio->stream.writepos = 0;
+    pio->stream.filepos = 0;
+	pio->stream.sfilepos = 0;
+    pio->stream.len = 0;
+    pio->stream.flags = flags;
+	pio->stream.type = PSTREAM_TYPE_STRING;
+    pio->stream.buf = (u8*)str;
+	pio->stream.len = size;
 
-				goto error;
-			}
-
-			pio->stream.handle = h;
-			pio->stream.filepos = 0;
-		}
-		pio->stream.filepos++;
-
-		return (const char*)dir->cFileName;
-    #else
-        struct dirent* dir = readdir((DIR*)pio->stream.handle);
-        if (!dir) {
-			pio->stream.md_err = PIO_ERR_READ;
-            pio->last_err_xstr = "'readdir' returned NULL";
-			pio->last_err_func = "sread_dir";
-            return 0;
-        }
-		pio->stream.filepos++;
-        return (const char*)dir->d_name;
-    #endif
+	pio->string_md.string_size = size;
+	pio->string_md.valid = true;
+	return pio;
 }
 
 __IFN bool sclose(PIO_Stream* pio) {
@@ -339,6 +415,11 @@ __IFN bool sclose(PIO_Stream* pio) {
 			break;
 		}
 
+		case PSTREAM_TYPE_STRING: {
+			dealloc(pio);
+			return true; // Internal buffer is directly binded to user specified string
+		}
+
 		default: {
 			pio->stream.md_err = PIO_ERR_CLOSE;
             pio->last_err_xstr = "Unknown stream type";
@@ -353,78 +434,89 @@ __IFN bool sclose(PIO_Stream* pio) {
 	return true;
 }
 
-__IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size) {
-    if (!pio || !buffer || size == 0) return 0;
-
-    #if defined(_WIN32)
-        DWORD read = 0;
-        if (!ReadFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &read, PNULL)) {
-			if (GetLastError() == ERROR_IO_PENDING) goto success;
-			pio->stream.md_err = PIO_ERR_READ;
-            pio->last_err_xstr = "'ReadFile' failed";
-			pio->last_err_func = "sread";
-            return 0;
-        }
-
-		success: {
-        	return (usize_t)read;
-		}
-    #else
-        long ret = read((int)pio->stream.handle, buffer, size);
-        if (ret < 0) {
-			pio->stream.md_err = PIO_ERR_READ;
-            pio->last_err_xstr = "'read' returned negative value";
-			pio->last_err_func = "sread";
-            return 0;
-        }
-        return (usize_t)ret;
-    #endif
-}
-
-__IFN usize_t swrite(PIO_Stream* pio, const void* buffer, usize_t size) {
-    if (!pio || !buffer || size == 0) return 0;
-
-    #if defined(_WIN32)
-        DWORD written = 0;
-        if (!WriteFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &written, PNULL)) {
-			if (GetLastError() == ERROR_IO_PENDING) goto success;
-			pio->stream.md_err = PIO_ERR_WRITE;
-            pio->last_err_xstr = "'WriteFile' failed";
-			pio->last_err_func = "swrite";
-            return 0;
-        }
-		success: {
-        	return (usize_t)written;
-		}
-    #else
-        long ret = write((int)pio->stream.handle, buffer, size);
-        if (ret < 0) {
-			pio->stream.md_err = PIO_ERR_WRITE;
-            pio->last_err_xstr = "'write' returned negative value";
-			pio->last_err_func = "swrite";
-            return 0;
-        }
-        return (usize_t)ret;
-    #endif
-}
-
-__IFN bool sseek(PIO_Stream* pio, long offset, int origin) {
+__IFN static bool i_sseek(PIO_Stream* pio, len_t offset, int origin, bool only_sys) {
     if (!pio) return false;
-	uoff_t fpos = 0;
 	
 	switch(pio->stream.type) {
 		case PSTREAM_TYPE_FILE: {
-			#if defined(_WIN32)
-				LARGE_INTEGER li;
-				li.QuadPart = offset;
+			if (only_sys) goto syscall;
 
-				DWORD pos = SetFilePointerEx((HANDLE)pio->stream.handle, li, PNULL, origin);
-				if (pos == INVALID_SET_FILE_POINTER) {
+			if (!pio->file_md.valid) {
+				if (!sfile_md(PNULL, &pio->file_md, pio)) {
+					pio->stream.md_err = PIO_ERR_MD; // Warning Error
+					pio->last_err_xstr = "Failed to retrieve file metadata, using system call as a fallback";
+					pio->last_err_func = "sseek";
+					goto syscall; // Do not let the function fail just because of this
+				}
+			}
+
+			// Check 2
+			if (pio->file_md.valid) {
+				switch (origin) {
+					case SEEK_SET: {
+						if (offset > (len_t)pio->file_md.file_size) {
+							pio->stream.md_err = PIO_ERR_SEEK;
+							pio->last_err_xstr = "Out-of-file Seek attempt";
+							pio->last_err_func = "sseek";
+							return false;
+						}
+						pio->stream.filepos = offset;
+						return true;
+					}
+					case SEEK_CUR: {
+						if (offset > 0 && pio->stream.filepos > (len_t)(INT64_MAX - offset)) {
+							file_seek_cur_err: {
+								pio->stream.md_err = PIO_ERR_SEEK;
+								pio->last_err_xstr = "Out-of-file Seek attempt";
+								pio->last_err_func = "sseek";
+								return false;
+							}
+						}
+						if (offset < 0 && pio->stream.filepos < (len_t)(INT64_MIN - offset)) goto file_seek_cur_err;
+
+						pio->stream.filepos = offset + pio->stream.filepos;
+						return true;
+					}
+					case SEEK_END: {
+						if (offset > 0 && (len_t)pio->file_md.file_size > (len_t)(INT64_MAX - offset)) {
+							file_seek_end_err: {
+								pio->stream.md_err = PIO_ERR_SEEK;
+								pio->last_err_xstr = "Out-of-file Seek attempt";
+								pio->last_err_func = "sseek";
+								return false;
+							}
+						}
+						if (offset < 0 && (len_t)pio->file_md.file_size < (len_t)(INT64_MIN - offset)) goto file_seek_end_err;
+
+						pio->stream.filepos = offset + pio->file_md.file_size;
+						return true;
+					}
+
+					default: {
+						pio->stream.md_err = PIO_ERR_SEEK;
+						pio->last_err_xstr = "Invalid 'origin' value";
+						pio->last_err_func = "sseek";
+						return false;
+					}
+				}
+			}
+
+			syscall: {}
+
+			#if defined(_WIN32)
+				LARGE_INTEGER distance;
+				LARGE_INTEGER new_pos;
+				distance.QuadPart = offset;
+
+				if (!SetFilePointerEx((HANDLE)pio->stream.handle, distance, &new_pos, origin)) {
 					pio->stream.md_err = PIO_ERR_SEEK;
 					pio->last_err_xstr = "'SetFilePointerEx' failed";
 					pio->last_err_func = "sseek";
 					return false;
 				}
+
+				pio->stream.sfilepos = (uoff_t)new_pos.QuadPart;
+				pio->stream.filepos = pio->stream.sfilepos;
 			#else
 				long ret = lseek((int)pio->stream.handle, offset, origin);
 				if (ret < 0) {
@@ -433,77 +525,286 @@ __IFN bool sseek(PIO_Stream* pio, long offset, int origin) {
 					pio->last_err_func = "sseek";
 					return false;
 				}
+
+				pio->stream.sfilepos = (len_t)ret;
+				pio->stream.filepos = pio->stream.sfilepos;
 			#endif
 			break;
 		}
 
-		case PSTREAM_TYPE_DIR: {
-			#if defined(_WIN32)
-				LARGE_INTEGER li;
-				li.QuadPart = offset;
+		case PSTREAM_TYPE_STRING: {
+			switch (origin) {
+				case SEEK_SET: {
+					if (offset < 0 || offset > (len_t)pio->stream.len) {
+						pio->stream.md_err = PIO_ERR_SEEK;
+						pio->last_err_xstr = "Out-of-string Seek attempt";
+						pio->last_err_func = "sseek";
+						return false;
+					}
+					pio->stream.filepos = offset;
+					break;
+				}
+				case SEEK_CUR: {
+					if (offset > 0 && (len_t)pio->stream.filepos > (len_t)(INT64_MAX - offset)) {
+						string_seek_cur_err: {
+							pio->stream.md_err = PIO_ERR_SEEK;
+							pio->last_err_xstr = "Out-of-string Seek attempt";
+							pio->last_err_func = "sseek";
+							return false;
+						}
+					}
+					if (offset < 0 && (len_t)pio->stream.filepos < (len_t)(INT64_MIN - offset)) goto string_seek_cur_err;
 
-				DWORD pos = SetFilePointerEx((HANDLE)pio->stream.handle, li, PNULL, origin);
-				if (pos == INVALID_SET_FILE_POINTER) {
+					len_t fpos = offset + (len_t)pio->stream.filepos;
+					if (fpos < 0 || fpos > (len_t)pio->stream.len) goto string_seek_cur_err;
+
+					pio->stream.filepos = fpos;
+					break;
+				}
+				case SEEK_END: {
+					if (offset > 0 && (len_t)pio->stream.len > (len_t)(INT64_MAX - offset)) {
+						string_seek_end_err: {
+							pio->stream.md_err = PIO_ERR_SEEK;
+							pio->last_err_xstr = "Out-of-file Seek attempt";
+							pio->last_err_func = "sseek";
+							return false;
+						}
+					}
+					if (offset < 0 && (len_t)pio->stream.len < (len_t)(INT64_MIN - offset)) goto string_seek_end_err;
+					
+					len_t fpos = offset + (len_t)pio->stream.len;
+					if (fpos < 0 || fpos > (len_t)pio->stream.len) goto string_seek_end_err;
+
+					pio->stream.filepos = fpos;
+					break;
+				}
+
+				default: {
 					pio->stream.md_err = PIO_ERR_SEEK;
-					pio->last_err_xstr = "'SetFilePointerEx' failed";
+					pio->last_err_xstr = "Invalid 'origin' value";
 					pio->last_err_func = "sseek";
 					return false;
 				}
-			#else
-				long ret = seekdir((int)pio->stream.handle, offset, origin);
-				if (ret < 0) {
-					pio->stream.md_err = PIO_ERR_SEEK;
-					pio->last_err_xstr = "'lseek' returned negative value";
-					pio->last_err_func = "sseek";
-					return false;
-				}
-			#endif
-			break;
+			}
+
+			pio->stream.sfilepos = pio->stream.filepos;
+			return true;
+		}
+
+		default: {
+			pio->stream.md_err = PIO_ERR_SEEK;
+			pio->last_err_xstr = "Attempt to seek on a stream type that doesn't support seek";
+			pio->last_err_func = "sseek";
+			return false;
 		}
 	}
 
 	return true;
 }
 
+__IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size) {
+    if (!pio || !buffer || size == 0) return 0;
+
+	if (pio->stream.filepos != pio->stream.sfilepos) {
+		if (!i_sseek(pio, pio->stream.filepos, SEEK_SET, true)) return 0; // Error already created
+	}
+
+	switch (pio->stream.type) {
+		case PSTREAM_TYPE_FILE: {
+			#if defined(_WIN32)
+				DWORD read = 0;
+				if (!ReadFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &read, PNULL)) {
+					if (GetLastError() == ERROR_IO_PENDING) goto success;
+					pio->stream.md_err = PIO_ERR_READ;
+					pio->last_err_xstr = "'ReadFile' failed";
+					pio->last_err_func = "sread";
+					return 0;
+				}
+
+				success: {
+					pio->stream.filepos += (usize_t)read;
+					pio->stream.sfilepos += (usize_t)read;
+					return (usize_t)read;
+				}
+			#else
+				long ret = read((int)pio->stream.handle, buffer, size);
+				if (ret < 0) {
+					pio->stream.md_err = PIO_ERR_READ;
+					pio->last_err_xstr = "'read' returned negative value";
+					pio->last_err_func = "sread";
+					return 0;
+				}
+
+				pio->stream.filepos += (usize_t)ret;
+				pio->stream.sfilepos += (usize_t)ret;
+				return (usize_t)ret;
+			#endif
+			break;
+		}
+
+		case PSTREAM_TYPE_STRING: {
+			if (!(pio->stream.flags & PSTREAM_FLAG_READ)) {
+				pio->stream.md_err = PIO_ERR_READ;
+				pio->last_err_xstr = "String Stream doesn't support reading";
+				pio->last_err_func = "sread";
+				return 0;
+			}
+
+			if (!pio->stream.buf) {
+				pio->stream.md_err = PIO_ERR_READ;
+				pio->last_err_xstr = "String Stream doesn't have a destination string";
+				pio->last_err_func = "sread";
+				return 0;
+			}
+
+			if (pio->stream.sfilepos < 0 || pio->stream.sfilepos > (len_t)pio->stream.len) {
+				pio->stream.md_err = PIO_ERR_READ;
+				pio->last_err_xstr = "Out-of-string read attempt";
+				pio->last_err_func = "sread";
+				return 0;
+			}
+
+			usize_t to_read = min(pio->stream.len - pio->stream.sfilepos, size);
+			copybuf(buffer, (const void*)(pio->stream.buf + pio->stream.sfilepos), to_read);
+
+			pio->stream.filepos += to_read;
+			pio->stream.sfilepos += to_read;
+			return to_read;
+		}
+
+		default: {
+			pio->stream.md_err = PIO_ERR_READ;
+			pio->last_err_xstr = "Invalid Stream Type";
+			pio->last_err_func = "sread";
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
+__IFN usize_t swrite(PIO_Stream* pio, const void* buffer, usize_t size) {
+    if (!pio || !buffer || size == 0) return 0;
+
+	if (pio->stream.filepos != pio->stream.sfilepos) {
+		if (!i_sseek(pio, pio->stream.filepos, SEEK_SET, true)) return 0; // Error already created
+	}
+
+	switch (pio->stream.type) {
+		case PSTREAM_TYPE_FILE: {
+			#if defined(_WIN32)
+				DWORD written = 0;
+				if (!WriteFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &written, PNULL)) {
+					if (GetLastError() == ERROR_IO_PENDING) goto success;
+					pio->stream.md_err = PIO_ERR_WRITE;
+					pio->last_err_xstr = "'WriteFile' failed";
+					pio->last_err_func = "swrite";
+					return 0;
+				}
+				
+				success: {
+					pio->file_md.valid = false;
+					pio->stream.filepos += (usize_t)written;
+					pio->stream.sfilepos += (usize_t)written;
+					return (usize_t)written;
+				}
+			#else
+				long ret = write((int)pio->stream.handle, buffer, size);
+				if (ret < 0) {
+					pio->stream.md_err = PIO_ERR_WRITE;
+					pio->last_err_xstr = "'write' returned negative value";
+					pio->last_err_func = "swrite";
+					return 0;
+				}
+				
+				pio->file_md.valid = false;
+				pio->stream.filepos += (usize_t)ret;
+				pio->stream.sfilepos += (usize_t)ret;
+				return (usize_t)ret;
+			#endif
+
+			break;
+		}
+
+		case PSTREAM_TYPE_STRING: {
+			if (!(pio->stream.flags & PSTREAM_FLAG_WRITE)) {
+				pio->stream.md_err = PIO_ERR_WRITE;
+				pio->last_err_xstr = "String Stream doesn't support writing";
+				pio->last_err_func = "swrite";
+				return 0;
+			}
+
+			if (!pio->stream.buf) {
+				pio->stream.md_err = PIO_ERR_WRITE;
+				pio->last_err_xstr = "String Stream doesn't have a destination string";
+				pio->last_err_func = "swrite";
+				return 0;
+			}
+
+			if (pio->stream.sfilepos < 0 || pio->stream.sfilepos > (len_t)pio->stream.len) {
+				pio->stream.md_err = PIO_ERR_WRITE;
+				pio->last_err_xstr = "Out-of-string write attempt";
+				pio->last_err_func = "swrite";
+				return 0;
+			}
+
+			usize_t to_write = min(pio->stream.len - pio->stream.sfilepos, size);
+			copybuf((void*)(pio->stream.buf + pio->stream.sfilepos), buffer, to_write);
+
+			pio->stream.filepos += to_write;
+			pio->stream.sfilepos += to_write;
+			return to_write;
+		}
+
+		default: {
+			pio->stream.md_err = PIO_ERR_WRITE;
+			pio->last_err_xstr = "Invalid Stream Type";
+			pio->last_err_func = "swrite";
+			return 0;
+		}
+
+	}
+}
+
+__IFN bool sseek(PIO_Stream* pio, len_t offset, int origin) {
+	if (!pio) return false;
+	return i_sseek(pio, offset, origin, false);
+}
+
 __IFN len_t stell(PIO_Stream* pio) {
     if (!pio) return (len_t)-1;
-    #if defined(_WIN32)
-        LARGE_INTEGER pos;
-        pos.QuadPart = 0;
-        DWORD out = SetFilePointerEx((HANDLE)pio->stream.handle, pos, &pos, FILE_CURRENT);
-
-		if (out == 0) {
-			pio->stream.md_err = PIO_ERR_SEEK;
-            pio->last_err_xstr = "'SetFilePointerEx' returned invalid value";
-			pio->last_err_func = "stell";
-            return (len_t)-1;
-		}
-        return (len_t)pos.QuadPart;
-    #else
-        long ret = lseek((int)pio->stream.handle, 0, SEEK_CUR);
-        if (ret < 0) {
-			pio->stream.md_err = PIO_ERR_SEEK;
-            pio->last_err_xstr = "'lseek' returned negative value";
-			pio->last_err_func = "stell";
-            return (len_t)-1;
-        }
-        return (len_t)ret;
-    #endif
+	return pio->stream.filepos;
 }
 
 __IFN bool seof(PIO_Stream* pio) {
     if (!pio) return true; // Count errors as EOF
 
-    len_t cur = stell(pio);
-	if (cur < 0) return true;
+	switch (pio->stream.type) {
+		case PSTREAM_TYPE_FILE: {
+			if (pio->stream.filepos < 0) return true;
+			if (!pio->file_md.valid) {
+				if (!sfile_md(PNULL, &pio->file_md, pio)) {
+					pio->stream.md_err = PIO_ERR_MD;
+					pio->last_err_xstr = "Failed to retrieve file metadata";
+					pio->last_err_func = "seof";
+					return true; // Count as EOF
+				}
+			}
+			
+			if (pio->stream.filepos >= (len_t)pio->file_md.file_size) return true;
+			break;
+		}
 
-	if (!sseek(pio, 0, SEEK_END)) return true;
-	len_t end = stell(pio);
-	if (end < 0) return true;
-	
-	if (!sseek(pio, cur, SEEK_SET)) return true;
+		case PSTREAM_TYPE_STRING: {
+			if (pio->stream.filepos < 0) return true;
+			if (pio->stream.filepos >= (len_t)pio->stream.len) return true;
+			break;
+		}
 
-	return cur >= end;
+		default: break;
+	}
+
+	return false;
 }
 
 __IFN bool sflush(PIO_Stream* pio) {
@@ -529,6 +830,7 @@ __IFN const char* slast_err_msg(PIO_Stream* pio) {
         case PIO_ERR_READ: return "Stream could not be read from";
         case PIO_ERR_WRITE: return "Stream could not be written to";
         case PIO_ERR_SEEK: return "Stream seek failed";
+		case PIO_ERR_MD: return "Stream Metadata load failed";
         default: return "Unknown reason";
     }
 }
@@ -544,16 +846,19 @@ __IFN const char* slast_xerr_msg(PIO_Stream* pio, const char** xmsg, const char*
 
 __IFN int print(const char* str, usize_t size) {
     if (!str) return -1;
+	if (size < 1) return 0;
+
     #if defined(_WIN32)
-        if (PStdoutStream->stream.handle == INVALID_HANDLE_VALUE) return -2;
+        if (PStdoutStream->stream.handle == INVALID_HANDLE_VALUE) return -1;
+
         int chars_written;
         WriteConsole(PStdoutStream->stream.handle, str, size, &chars_written, PNULL);
         return chars_written;
     #else
-        swrite(PStdoutStream, str, size);
+        return swrite(PStdoutStream, str, size);
     #endif
 
-    return -3;
+    return -1;
 }
 
 __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
@@ -714,8 +1019,9 @@ __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
             case 's': {
                 s = va_arg(ap, char*);
                 if (!s) s = "(null)";
+
                 len_s = strlen(s);
-                written += swrite(pio, s, len_s > width_of_v && width_of_v > 0 ? width_of_v : len_s);
+                written += swrite(pio, s, len_s > precision_of_v && width_of_v > 0 ? precision_of_v : len_s);
                 break;
             }
             case 'c': {
@@ -735,7 +1041,8 @@ __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
                     default: int_v = (i64)((int)va_arg(ap, int)); break;
                 }
                 s = i64_to_str(int_v, buf64, 10);
-                if (!s) s = "(invalid int)";
+                
+				if (!s) s = "(invalid int)";
                 if (signed_prefix != '\0') {
                     if (signed_prefix_on_positive && int_v >= 0) {
                         written += swrite(pio, &signed_prefix, 1);
@@ -743,8 +1050,9 @@ __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
                         written += swrite(pio, &signed_prefix, 1);
                     }
                 }
-                len_s = strlen(s);
-                written += swrite(pio, s, len_s > width_of_v && width_of_v > 0 ? width_of_v : len_s);
+                
+				len_s = strlen(s);
+                written += swrite(pio, s, len_s > precision_of_v && width_of_v > 0 ? precision_of_v : len_s);
                 break;
             }
             case 'u': {
@@ -757,12 +1065,14 @@ __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
                     default: uint_v = (u64)((uint)va_arg(ap, uint)); break;
                 }
                 s = u64_to_str(uint_v, buf64, 10);
-                if (!s) s = "(invalid uint)";
+                
+				if (!s) s = "(invalid uint)";
                 if (signed_prefix != '\0' && signed_prefix_on_positive) {
                     written += swrite(pio, &signed_prefix, 1);
                 }
-                len_s = strlen(s);
-                written += swrite(pio, s, len_s > width_of_v && width_of_v > 0 ? width_of_v : len_s);
+                
+				len_s = strlen(s);
+                written += swrite(pio, s, len_s > precision_of_v && width_of_v > 0 ? precision_of_v : len_s);
                 break;
             }
             case 'o': {
@@ -775,12 +1085,14 @@ __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
                     default: uint_v = (u64)((uint)va_arg(ap, uint)); break;
                 }
                 s = u64_to_str(uint_v, buf64, 8);
-                if (!s) s = "(invalid octal)";
+                
+				if (!s) s = "(invalid octal)";
                 if (base_prefix) {
                     written += swrite(pio, "0o", 2);
                 }
-                len_s = strlen(s);
-                written += swrite(pio, s, len_s > width_of_v && width_of_v > 0 ? width_of_v : len_s);
+                
+				len_s = strlen(s);
+                written += swrite(pio, s, len_s > precision_of_v && width_of_v > 0 ? precision_of_v : len_s);
                 break;
             }
             case 'x': {
@@ -793,12 +1105,14 @@ __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
                     default: uint_v = (u64)((uint)va_arg(ap, uint)); break;
                 }
                 s = u64_to_str(uint_v, buf64, 16);
-                if (!s) s = "(invalid hex)";
+                
+				if (!s) s = "(invalid hex)";
                 if (base_prefix) {
                     written += swrite(pio, "0x", 2);
                 }
-                len_s = strlen(s);
-                written += swrite(pio, s, len_s > width_of_v && width_of_v > 0 ? width_of_v : len_s);
+                
+				len_s = strlen(s);
+                written += swrite(pio, s, len_s > precision_of_v && width_of_v > 0 ? precision_of_v : len_s);
                 break;
             }
             case 'X': {
@@ -811,17 +1125,21 @@ __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
                     default: uint_v = (u64)((uint)va_arg(ap, uint)); break;
                 }
                 s = u64_to_str(uint_v, buf64, 16);
-                for (char* sptr = s; *sptr; sptr++) {
-                    if (c_is_alpha(*sptr)) {
-                        *sptr = (*sptr & 0xDF);
-                    }
-                }
-                if (!s) s = "(invalid hex)";
+				
+				if (!s) s = "(invalid hex)";
+				else {
+					for (char* sptr = s; *sptr; sptr++) {
+						if (c_is_alpha(*sptr)) {
+							*sptr = (*sptr & 0xDF);
+						}
+					}
+				}
+
                 if (base_prefix) {
                     written += swrite(pio, "0x", 2);
                 }
                 len_s = strlen(s);
-                written += swrite(pio, s, len_s > width_of_v && width_of_v > 0 ? width_of_v : len_s);
+                written += swrite(pio, s, len_s > precision_of_v && width_of_v > 0 ? precision_of_v : len_s);
                 break;
             }
             case 'b': {
@@ -834,35 +1152,40 @@ __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
                     default: uint_v = (u64)((uint)va_arg(ap, uint)); break;
                 }
                 s = u64_to_str(uint_v, buf64, 2);
-                if (!s) s = "(invalid binary)";
+                
+				if (!s) s = "(invalid binary)";
                 if (base_prefix) {
                     written += swrite(pio, "0b", 2);
                 }
-                len_s = strlen(s);
-                written += swrite(pio, s, len_s > width_of_v && width_of_v > 0 ? width_of_v : len_s);
+                
+				len_s = strlen(s);
+                written += swrite(pio, s, len_s > precision_of_v && width_of_v > 0 ? precision_of_v : len_s);
                 break;
             }
             case 'p': {
-                u64 uint_v = (u64)va_arg(ap, void*);
-                s = u64_to_str(uint_v, buf64, 16);
+                uptr_t uint_v = (uptr_t)va_arg(ap, void*);
+				s = u64_to_str((u64)uint_v, buf64, 16);
                 if (!s) s = "(invalid pointer)";
-                written += swrite(pio, "0x", 2);
+                
+				written += swrite(pio, "0x", 2);
                 len_s = strlen(s);
-                written += swrite(pio, s, len_s > width_of_v && width_of_v > 0 ? width_of_v : len_s);
+                written += swrite(pio, s, len_s > precision_of_v && width_of_v > 0 ? precision_of_v : len_s);
                 break;
             }
             case 'P': {
-                u64 uint_v = (u64)va_arg(ap, void*);
-                s = u64_to_str(uint_v, buf64, 16);
-                if (!s) s = "(invalid pointer)";
+                uptr_t uint_v = (uptr_t)va_arg(ap, void*);
+                s = u64_to_str((u64)uint_v, buf64, 16);
+                
+				if (!s) s = "(invalid pointer)";
                 for (char* sptr = s; *sptr; sptr++) {
                     if (c_is_alpha(*sptr)) {
                         *sptr = (*sptr & 0xDF);
                     }
                 }
-                written += swrite(pio, "0x", 2);
+               
+				written += swrite(pio, "0x", 2);
                 len_s = strlen(s);
-                written += swrite(pio, s, len_s > width_of_v && width_of_v > 0 ? width_of_v : len_s);
+                written += swrite(pio, s, len_s > precision_of_v && width_of_v > 0 ? precision_of_v : len_s);
                 break;
             }
             case 'f': {
@@ -872,9 +1195,10 @@ __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
                     default: double_v = (double)((float)va_arg(ap, double)); break;
                 }
                 s = double_to_str(double_v, buf64, precision_of_v <= 16 && precision_of_v > 0 ? precision_of_v : 16);
-                if (!s) s = "(invalid float)";
-                len_s = strlen(s);
-                written += swrite(pio, s, len_s > width_of_v && width_of_v > 0 ? width_of_v : len_s);
+				if (!s) s = "(invalid float)";
+                
+				len_s = strlen(s);
+                written += swrite(pio, s, len_s > precision_of_v && width_of_v > 0 ? precision_of_v : len_s);
                 break;
             }
 
@@ -890,6 +1214,8 @@ __IFN int vfprints(PIO_Stream* pio, const char* format, va_list ap) {
 }
 
 __IFN int fprints(PIO_Stream* pio, const char* format, ...) {
+	if (!pio || !format) return -1;
+
     va_list ap;
     start_va(ap, format);
     int ret = vfprints(pio, format, ap);
@@ -897,7 +1223,42 @@ __IFN int fprints(PIO_Stream* pio, const char* format, ...) {
     return ret;
 }
 
+__IFN int fmsprint(char* dst, usize_t max_size, const char* format, ...) {
+	if (!dst || !format) return -1;
+	if (max_size < 1) return 0;
+
+	ulen_t sz = strlen(dst);
+	ulen_t msz = min(sz, max_size);
+
+	// Make fake PIO_Stream
+	PIO_Stream pio = {
+		.string_md.string_size = msz,
+		.string_md.valid = true,
+
+		.last_err_func = PNULL,
+		.last_err_xstr = PNULL,
+
+		.stream.buf = (u8*)dst,
+		.stream.len = msz,
+		.stream.type = PSTREAM_TYPE_STRING,
+		.stream.md_err = PIO_ERR_NONE,
+		.stream.flags = PSTREAM_FLAG_WRITE,
+		.stream.filepos = 0,
+		.stream.sfilepos = 0,
+		.stream.writepos = 0,
+		.stream.readpos = 0
+	};
+
+	va_list ap;
+    start_va(ap, format);
+    int ret = vfprints(&pio, format, ap);
+    end_va(ap);
+    return ret;
+}
+
 __IFN int fperror(const char* format, ...) {
+	if (!format) return -1;
+
     va_list ap;
     start_va(ap, format);
     int ret = vfprints(s_stderr, format, ap);
