@@ -358,7 +358,7 @@ __IFN int strscmp(const char* a, const char* b, usize_t size) {
     return (n1 > n2) - (n1 < n2);
 }
 
-__IFN char* strfindstr(const char* str, const char* substr, psize_t occurrence) {
+__IFN const char* strfindstr(const char* str, const char* substr, psize_t occurrence) {
 	if (!str || !substr) return PNULL;
 
     usize_t n = strlen(str);
@@ -372,7 +372,7 @@ __IFN char* strfindstr(const char* str, const char* substr, psize_t occurrence) 
     for (usize_t i = 0; i <= n - sn; i++) {
         cstr = (const char*)(str + i);
         if (str[i] == substr[0]) {
-			if (strncmp(cstr, substr, sn) != 0) continue;
+			if (strscmp(cstr, substr, sn) != 0) continue;
 
 			last_occur = cstr;
             coccur++;

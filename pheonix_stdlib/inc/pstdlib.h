@@ -433,7 +433,7 @@ Special Values for `occurrence`:
 	0: The first occurrence
 	<0: The last occurrence
 */
-__IFN char* strfindstr(const char* str, const char* substr, psize_t occurrence);
+__IFN const char* strfindstr(const char* str, const char* substr, psize_t occurrence);
 
 /*
 String Split -
