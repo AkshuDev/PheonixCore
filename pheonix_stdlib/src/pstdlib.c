@@ -358,6 +358,37 @@ __IFN int strscmp(const char* a, const char* b, usize_t size) {
     return (n1 > n2) - (n1 < n2);
 }
 
+__IFN char* strfindstr(const char* str, const char* substr, psize_t occurrence) {
+	if (!str || !substr) return PNULL;
+
+    usize_t n = strlen(str);
+	usize_t sn = strlen(substr);
+	if (sn > n || sn < 1) return PNULL; // Substring bigger than string, yeah ain't happening
+
+    usize_t coccur = 0;
+	const char* last_occur = PNULL;
+    const char* cstr = str;
+
+    for (usize_t i = 0; i <= n - sn; i++) {
+        cstr = (const char*)(str + i);
+        if (str[i] == substr[0]) {
+			if (strncmp(cstr, substr, sn) != 0) continue;
+
+			last_occur = cstr;
+            coccur++;
+
+			if (occurrence < 0) continue;
+
+            if ((usize_t)occurrence == 0 || coccur == (usize_t)occurrence) {
+                return cstr;
+            }
+        }
+    }
+
+	if (occurrence < 0) return last_occur;
+    return PNULL;
+}
+
 __IFN char* strsplit(const char* str, char c, usize_t occurrence, bool first_part) {
 	if (!str) return PNULL;
 

@@ -426,6 +426,16 @@ Special Values for `occurrence`:
 __IFN const char* strfindc(const char* str, char c, psize_t occurrence);
 
 /*
+String Find Sub-String  -
+Find the specified occurrence of the provided sub-string and return the part of the string with that sub-string's first character and after it
+
+Special Values for `occurrence`:
+	0: The first occurrence
+	<0: The last occurrence
+*/
+__IFN char* strfindstr(const char* str, const char* substr, psize_t occurrence);
+
+/*
 String Split -
 Find the specified occurrence of the provided character and return a new string of either the part before or after the character
 */
