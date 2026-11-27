@@ -393,7 +393,7 @@ __IFN char* retenv(const char* name) {
         char* e = env_vars[i];
         if (!e) continue;
 
-        if (!strncmp(e, (char*)name, len) && e[len] == '=') {
+        if (!strscmp(e, (char*)name, len) && e[len] == '=') {
             return e + len + 1;
         }
     }
@@ -411,7 +411,7 @@ __IFN bool assignenv(const char* name, const char* val, bool overwrite) {
         char* e = env_vars[i];
         if (!e) continue;
 
-        if (!strncmp(e, (char*)name, nlen) && e[nlen] == '=') {
+        if (!strscmp(e, (char*)name, nlen) && e[nlen] == '=') {
             if (!overwrite)
                 return true;
 
