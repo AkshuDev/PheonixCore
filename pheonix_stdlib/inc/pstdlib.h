@@ -413,7 +413,7 @@ Compare specified bytes of a string with another string
 
 Returns the byte difference of the first differing byte
 */
-__IFN int strncmp(const char* a, const char* b, usize_t size);
+__IFN int strscmp(const char* a, const char* b, usize_t size);
 
 /*
 String Find Character  -
@@ -615,7 +615,7 @@ str_to_float: String to float
 
 Convert a string to an float
 */
-#define str_to_float(str) (float)str_to_double((str))
+#define str_to_float(str, endptr) (float)str_to_double((str), (endptr))
 
 /*
 c_is_space: Character is Whitespace

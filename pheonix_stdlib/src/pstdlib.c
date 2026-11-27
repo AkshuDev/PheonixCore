@@ -343,7 +343,7 @@ __IFN int strcmp(const char* a, const char* b) {
     return (n1 > n2) - (n1 < n2);
 }
 
-__IFN int strncmp(const char* a, const char* b, usize_t size) {
+__IFN int strscmp(const char* a, const char* b, usize_t size) {
 	if (!a || !b) return false;
 	if (size == 0) return true;
 
