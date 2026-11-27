@@ -555,28 +555,28 @@ str_to_int: String to Int
 
 Convert a string to an integer of size 4 bytes or 32 bits
 */
-#define str_to_int(str, base) (int)str_to_i64((str), (base))
+#define str_to_int(str, endptr, base) (int)str_to_i64((str), (endptr), (base))
 
 /*
 str_to_i32: String to Int 32
 
 Convert a string to an integer of size 4 bytes or 32 bits
 */
-#define str_to_i32(str, base) (i32)str_to_i64((str), (base))
+#define str_to_i32(str, endptr, base) (i32)str_to_i64((str), (endptr), (base))
 
 /*
 str_to_i16: String to Int 16
 
 Convert a string to an integer of size 2 bytes or 16 bits
 */
-#define str_to_i16(str, base) (i16)str_to_i64((str), (base))
+#define str_to_i16(str, endptr, base) (i16)str_to_i64((str), (endptr), (base))
 
 /*
 str_to_i8: String to Int 8
 
 Convert a string to an integer of size 1 bytes or 8 bits
 */
-#define str_to_i8(str, base) (i8)str_to_i64((str), (base))
+#define str_to_i8(str, endptr, base) (i8)str_to_i64((str), (endptr), (base))
 
 /*
 str_to_u64: String to Unsigned Int 64
@@ -590,28 +590,28 @@ str_to_uint: String to Unsigned Int
 
 Convert a string to an unsigned integer of size 4 bytes or 32 bits
 */
-#define str_to_uint(str, base) (uint)str_to_u64((str), (base))
+#define str_to_uint(str, endptr, base) (uint)str_to_u64((str), (endptr), (base))
 
 /*
 str_to_u32: String to Unsigned Int 32
 
 Convert a string to an unsigned integer of size 4 bytes or 32 bits
 */
-#define str_to_u32(str, base) (u32)str_to_u64((str), (base))
+#define str_to_u32(str, endptr, base) (u32)str_to_u64((str), (endptr), (base))
 
 /*
 str_to_u16: String to Unsigned Int 16
 
 Convert a string to an unsigned integer of size 2 bytes or 16 bits
 */
-#define str_to_u16(str, base) (u16)str_to_u64((str), (base))
+#define str_to_u16(str, endptr, base) (u16)str_to_u64((str), (endptr), (base))
 
 /*
 str_to_u8: String to Unsigned Int 8
 
 Convert a string to an unsigned integer of size 1 bytes or 8 bits
 */
-#define str_to_u8(str, base) (u8)str_to_u64((str), (base))
+#define str_to_u8(str, endptr, base) (u8)str_to_u64((str), (endptr), (base))
 
 /*
 str_to_double: String to double
