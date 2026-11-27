@@ -21,9 +21,9 @@
 		.stream={
 			.type=PSTREAM_TYPE_FILE,
 			.handle=__lstdout,
-			.readpos=0,
-			.writepos=0,
 			.filepos=0,
+			.sfilepos=0,
+			.spos=0,
 			.len=0,
 			.flags=PSTREAM_FLAG_WRITE,
 			.buf=(u8*)PNULL,
@@ -40,9 +40,9 @@
 		.stream={
 			.type=PSTREAM_TYPE_FILE,
 			.handle=__lstdin,
-			.readpos=0,
-			.writepos=0,
 			.filepos=0,
+			.sfilepos=0,
+			.spos=0,
 			.len=0,
 			.flags=PSTREAM_FLAG_READ,
 			.buf=(u8*)PNULL,
@@ -59,9 +59,9 @@
 		.stream={
 			.type=PSTREAM_TYPE_FILE,
 			.handle=__lstderr,
-			.readpos=0,
-			.writepos=0,
 			.filepos=0,
+			.sfilepos=0,
+			.spos=0,
 			.len=0,
 			.flags=PSTREAM_FLAG_WRITE,
 			.buf=(u8*)PNULL,
@@ -81,9 +81,9 @@
 		.stream={
 			.type=PSTREAM_TYPE_FILE,
 			.handle=-1,
-			.readpos=0,
-			.writepos=0,
 			.filepos=0,
+			.sfilepos=0,
+			.spos=0,
 			.len=0,
 			.flags=PSTREAM_FLAG_WRITE,
 			.buf=(u8*)PNULL,
@@ -100,9 +100,9 @@
 		.stream={
 			.type=PSTREAM_TYPE_FILE,
 			.handle=-1,
-			.readpos=0,
-			.writepos=0,
 			.filepos=0,
+			.sfilepos=0,
+			.spos=0,
 			.len=0,
 			.flags=PSTREAM_FLAG_READ,
 			.buf=(u8*)PNULL,
@@ -120,9 +120,9 @@
 		.stream={
 			.type=PSTREAM_TYPE_FILE,
 			.handle=-1,
-			.readpos=0,
-			.writepos=0,
 			.filepos=0,
+			.sfilepos=0,
+			.spos=0,
 			.len=0,
 			.flags=PSTREAM_FLAG_WRITE,
 			.buf=(u8*)PNULL,
@@ -136,6 +136,13 @@
 #if !defined(PIO_STREAM_BUF_CAP)
 	#define PIO_STREAM_BUF_CAP 0x2000 // 8KB
 #endif
+
+#ifndef PSTREAM_BUF_CHUNK_SIZE
+    #define PSTREAM_BUF_CHUNK_SIZE 0x1000
+#endif
+
+#define PSTREAM_BUF_REMAINING(s) ((s)->len - ((s)->filepos - (s)->spos))
+#define PSTREAM_BUF_DATA(s) ((s)->buf + ((s)->filepos - (s)->spos))
 
 #define WIN32_FILETIME_EPOCH_OFFSET 11644473600ULL
 #define WIN32_FILETIME_RESOLUTION 10000000ULL
@@ -166,19 +173,19 @@ __IFN bool sfile_md(const char* path, PIO_FileMD* out, PIO_Stream* s) {
 
 			ull.LowPart = ((FILETIME)data.CreationTime).dwLowDateTime;
 			ull.HighPart = ((FILETIME)data.CreationTime).dwHighDateTime;
-			ret.creation_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+			ret.creation_time = (timestamp_t)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
 			
 			ull.LowPart = ((FILETIME)data.LastWriteTime).dwLowDateTime;
 			ull.HighPart = ((FILETIME)data.LastWriteTime).dwHighDateTime;
-			ret.modified_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+			ret.modified_time = (timestamp_t)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
 
 			ull.LowPart = ((FILETIME)data.LastAccessTime).dwLowDateTime;
 			ull.HighPart = ((FILETIME)data.LastAccessTime).dwHighDateTime;
-			ret.last_access_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+			ret.last_access_time = (timestamp_t)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
 
 			FILE_STANDARD_INFO data2 = {0};
 			if (!GetFileInformationByHandleEx(p->stream.handle, FileStandardInfo, &data2, sizeof(data2))) return false;
-			ret.file_size = (u64)data2.EndOfFile.QuadPart;
+			ret.file_size = (ulen_t)data2.EndOfFile.QuadPart;
 		} else {
 			WIN32_FILE_ATTRIBUTE_DATA data = {0};
 			if (!GetFileAttributesExA(path, GetFileExInfoStandard, &data)) return false;
@@ -187,46 +194,46 @@ __IFN bool sfile_md(const char* path, PIO_FileMD* out, PIO_Stream* s) {
 
 			ull.LowPart = data.ftCreationTime.dwLowDateTime;
 			ull.HighPart = data.ftCreationTime.dwHighDateTime;
-			ret.creation_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+			ret.creation_time = (timestamp_t)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
 			
 			ull.LowPart = data.ftLastWriteTime.dwLowDateTime;
 			ull.HighPart = data.ftLastWriteTime.dwHighDateTime;
-			ret.modified_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+			ret.modified_time = (timestamp_t)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
 
 			ull.LowPart = data.ftLastAccessTime.dwLowDateTime;
 			ull.HighPart = data.ftLastAccessTime.dwHighDateTime;
-			ret.last_access_time = (u64)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
+			ret.last_access_time = (timestamp_t)((ull.QuadPart / WIN32_FILETIME_RESOLUTION) - WIN32_FILETIME_EPOCH_OFFSET);
 
-			ret.file_size = (((u64)data.nFileSizeHigh << 32) & 0xFFFFFFFF00000000ULL) | ((u64)data.nFileSizeLow & 0xFFFFFFFFULL);
+			ret.file_size = (ulen_t)(((u64)data.nFileSizeHigh << 32) & 0xFFFFFFFF00000000ULL) | ((u64)data.nFileSizeLow & 0xFFFFFFFFULL);
 		}
     #else
 		struct stat st;
 		if (s) {
 			#if __PARCH__ == x86_64
-				if (__plib_syscall(0x5, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st) < 0) return false;
+				if (__plib_syscall(0x5, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st, 0, 0, 0, 0) < 0) return false;
 			#elif __PARCH__ == x86
-				if (__plib_syscall(0x6C, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st) < 0) return false;
+				if (__plib_syscall(0x6C, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st, 0, 0, 0, 0) < 0) return false;
 			#elif __PARCH__ == arm64
-				if (__plib_syscall(0x50, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st) < 0) return false;
+				if (__plib_syscall(0x50, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st, 0, 0, 0, 0) < 0) return false;
 			#elif __PARCH__ == arm32
-				if (__plib_syscall(0x6C, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st) < 0) return false;
+				if (__plib_syscall(0x6C, (llong_t)s->stream.handle, (llong_t)(uptr_t)&st, 0, 0, 0, 0) < 0) return false;
 			#endif
 		} else {
 			#if __PARCH__ == x86_64
-				if (__plib_syscall(0x4, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st) < 0) return false;
+				if (__plib_syscall(0x4, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st, 0, 0, 0, 0) < 0) return false;
 			#elif __PARCH__ == x86
-				if (__plib_syscall(0x6A, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st) < 0) return false;
+				if (__plib_syscall(0x6A, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st, 0, 0, 0, 0) < 0) return false;
 			#elif __PARCH__ == arm64
-				if (__plib_syscall(0x4F, -100LL, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st, 0LL) < 0) return false;
+				if (__plib_syscall(0x4F, -100LL, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st, 0LL, 0, 0, 0) < 0) return false;
 			#elif __PARCH__ == arm32
-				if (__plib_syscall(0x6A, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st) < 0) return false;
+				if (__plib_syscall(0x6A, (llong_t)(uptr_t)path, (llong_t)(uptr_t)&st, 0, 0, 0, 0) < 0) return false;
 			#endif
 		}
 
-		ret.creation_time = st.st_ctime;
-		ret.modified_time = st.st_mtime;
-		ret.last_access_time = st.st_atime;
-		ret.file_size = st.st_size;
+		ret.creation_time = (timestamp_t)st.st_ctime;
+		ret.modified_time = (timestamp_t)st.st_mtime;
+		ret.last_access_time = (timestamp_t)st.st_atime;
+		ret.file_size = (ulen_t)st.st_size;
     #endif
 
 	*out = ret;
@@ -282,11 +289,11 @@ __IFN PIO_Stream* sopen_file(const char* path, PStreamFlags flags) {
     pio->last_err_xstr = PNULL;
 	pio->last_err_func = PNULL;
 	pio->stream.md_err = PIO_ERR_NONE;
-    pio->stream.readpos = 0;
-    pio->stream.writepos = 0;
     pio->stream.filepos = 0;
 	pio->stream.sfilepos = 0;
+	pio->stream.spos = 0;
     pio->stream.len = 0;
+	pio->stream.cap = 0;
     pio->stream.flags = flags;
 	pio->stream.type = PSTREAM_TYPE_FILE;
     pio->stream.buf = PNULL;
@@ -317,6 +324,7 @@ __IFN PIO_Stream* sopen_dir(const char* path) {
 			goto error;
 		}
 		pio->stream.len = sizeof(WIN32_FIND_DATAA);
+		pio->stream.cap = sizeof(WIN32_FIND_DATAA);
         pio->stream.handle = (uptr_t)INVALID_HANDLE_VALUE;
     #else
         DIR* fd = opendir(path);
@@ -333,10 +341,9 @@ __IFN PIO_Stream* sopen_dir(const char* path) {
     pio->last_err_xstr = PNULL;
 	pio->last_err_func = PNULL;
 	pio->stream.md_err = PIO_ERR_NONE;
-    pio->stream.readpos = 0;
-    pio->stream.writepos = 0;
     pio->stream.filepos = 0;
 	pio->stream.sfilepos = 0;
+	pio->stream.spos = 0;
     pio->stream.flags = PSTREAM_FLAG_NONE;
 	pio->stream.type = PSTREAM_TYPE_DIR;
 
@@ -358,15 +365,15 @@ __IFN PIO_Stream* sopen_string(char* str, usize_t size, PStreamFlags flags) {
 	pio->last_err_xstr = PNULL;
 	pio->last_err_func = PNULL;
 	pio->stream.md_err = PIO_ERR_NONE;
-    pio->stream.readpos = 0;
-    pio->stream.writepos = 0;
     pio->stream.filepos = 0;
 	pio->stream.sfilepos = 0;
+	pio->stream.spos = 0;
     pio->stream.len = 0;
     pio->stream.flags = flags;
 	pio->stream.type = PSTREAM_TYPE_STRING;
     pio->stream.buf = (u8*)str;
 	pio->stream.len = size;
+	pio->stream.cap = size;
 
 	pio->string_md.string_size = size;
 	pio->string_md.valid = true;
@@ -434,7 +441,7 @@ __IFN bool sclose(PIO_Stream* pio) {
 	return true;
 }
 
-__IFN static bool i_sseek(PIO_Stream* pio, len_t offset, int origin, bool only_sys) {
+static bool i_sseek(PIO_Stream* pio, len_t offset, int origin, bool only_sys) {
     if (!pio) return false;
 	
 	switch(pio->stream.type) {
@@ -602,32 +609,70 @@ __IFN static bool i_sseek(PIO_Stream* pio, len_t offset, int origin, bool only_s
 	return true;
 }
 
+static bool i_sbuf_init(PIO_Stream* pio) {
+    if (!pio) return false;
+    if (pio->stream.buf) return true;
+
+    pio->stream.buf = (u8*)zalloc(PSTREAM_BUF_CHUNK_SIZE);
+    if (!pio->stream.buf) return false;
+
+    pio->stream.cap = PSTREAM_BUF_CHUNK_SIZE;
+    pio->stream.len = 0;
+    pio->stream.spos = (ulen_t)pio->stream.filepos;
+    return true;
+}
+
+static usize_t i_sbuf_read(PIO_Stream* pio, void* buffer, usize_t size) {
+    if (!pio || !buffer || !size) return 0;
+
+    if (!i_sbuf_init(pio)) return 0;
+    if (!pio->stream.buf || pio->stream.filepos < (len_t)pio->stream.spos) return 0;
+
+    ulen_t offset = (ulen_t)(pio->stream.filepos - (len_t)pio->stream.spos);
+    if (offset >= pio->stream.len) return 0;
+
+    usize_t available = pio->stream.len - offset;
+    usize_t amount = min(available, size);
+
+    copybuf(buffer, pio->stream.buf + offset, amount);
+    pio->stream.filepos += amount;
+    return amount;
+}
+
 __IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size) {
     if (!pio || !buffer || size == 0) return 0;
 
-	if (pio->stream.filepos != pio->stream.sfilepos) {
-		if (!i_sseek(pio, pio->stream.filepos, SEEK_SET, true)) return 0; // Error already created
-	}
-
 	switch (pio->stream.type) {
 		case PSTREAM_TYPE_FILE: {
+			if (!pio->stream.buf) i_sbuf_init(pio);
+			if (!pio->stream.buf) goto syscall;
+
+			usize_t bytes_read = i_sbuf_read(pio, buffer, size);
+			if (bytes_read < 1) goto syscall;
+			else return bytes_read;
+
+			syscall: {}
+			if (pio->stream.filepos != pio->stream.sfilepos) {
+				if (!i_sseek(pio, pio->stream.filepos, SEEK_SET, true)) return 0; // Error already created
+			}
+
+			bool buf_needed = pio->stream.buf && (size < pio->stream.cap);
+			void* b = buf_needed ? pio->stream.buf : buffer; // Why should we even buffer this?
+			usize_t sz = buf_needed ? pio->stream.cap : size;
+
+			usize_t received = 0;
 			#if defined(_WIN32)
 				DWORD read = 0;
-				if (!ReadFile((HANDLE)pio->stream.handle, buffer, (DWORD)size, &read, PNULL)) {
-					if (GetLastError() == ERROR_IO_PENDING) goto success;
+				if (!ReadFile((HANDLE)pio->stream.handle, b, (DWORD)sz, &read, PNULL)) {
 					pio->stream.md_err = PIO_ERR_READ;
 					pio->last_err_xstr = "'ReadFile' failed";
 					pio->last_err_func = "sread";
 					return 0;
 				}
 
-				success: {
-					pio->stream.filepos += (usize_t)read;
-					pio->stream.sfilepos += (usize_t)read;
-					return (usize_t)read;
-				}
+				received = (usize_t)read;
 			#else
-				long ret = read((int)pio->stream.handle, buffer, size);
+				long ret = read((int)pio->stream.handle, b, sz);
 				if (ret < 0) {
 					pio->stream.md_err = PIO_ERR_READ;
 					pio->last_err_xstr = "'read' returned negative value";
@@ -635,11 +680,24 @@ __IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size) {
 					return 0;
 				}
 
-				pio->stream.filepos += (usize_t)ret;
-				pio->stream.sfilepos += (usize_t)ret;
-				return (usize_t)ret;
+				received = (usize_t)ret;
 			#endif
-			break;
+
+			if (buf_needed) {
+				usize_t delivered = min(size, received);
+
+				pio->stream.spos = pio->stream.sfilepos + delivered;
+				pio->stream.len = received - delivered; // If anything left dude....
+				copybuf(buffer, pio->stream.buf, delivered);
+
+				pio->stream.filepos += delivered;
+				pio->stream.sfilepos += received;
+				return delivered;
+			}
+
+			pio->stream.filepos += received;
+			pio->stream.sfilepos += received;
+			return received;
 		}
 
 		case PSTREAM_TYPE_STRING: {
@@ -681,6 +739,22 @@ __IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size) {
 	}
 
 	return 0;
+}
+
+__IFN char sgetc(PIO_Stream* pio) {
+	if (!pio) return '\0';
+	
+	char out = '\0';
+	usize_t bytes = sread(pio, &out, 1);
+	if (bytes != 1) return out; // Would already send error
+
+	return out;
+}
+
+__IFN void sungetc(PIO_Stream* pio) {
+	if (!pio) return;
+	if (pio->stream.filepos == 0) return;
+	pio->stream.filepos--;
 }
 
 __IFN usize_t swrite(PIO_Stream* pio, const void* buffer, usize_t size) {
@@ -1240,13 +1314,13 @@ __IFN int fmsprint(char* dst, usize_t max_size, const char* format, ...) {
 
 		.stream.buf = (u8*)dst,
 		.stream.len = msz,
+		.stream.cap = msz,
 		.stream.type = PSTREAM_TYPE_STRING,
 		.stream.md_err = PIO_ERR_NONE,
 		.stream.flags = PSTREAM_FLAG_WRITE,
 		.stream.filepos = 0,
 		.stream.sfilepos = 0,
-		.stream.writepos = 0,
-		.stream.readpos = 0
+		.stream.spos = 0
 	};
 
 	va_list ap;
@@ -1269,3 +1343,4 @@ __IFN int fperror(const char* format, ...) {
     
     return ret;
 }
+

@@ -170,6 +170,12 @@ typedef byte_t* poff_t; // Byte Pointer
 
 typedef ubyte_t flag_t; // 1 = True / 0 = False (Just an example can be used for any type of flag)
 
+typedef u64 timestamp_t; // UNIX Timestamp
+typedef u64 stime_t; // Low-Resolution Time (in seconds)
+typedef u64 mstime_t; // Medium-Resolution Time (in milliseconds)
+typedef u64 ustime_t; // High-Resolution Time (in microseconds)
+typedef u64 nstime_t; // Ultra-Resolution Time (in nanoseconds)
+
 // Enums
 
 /*
@@ -220,12 +226,12 @@ across various data sources such as files, memory buffers, or network streams.
 typedef struct {
     ptr_t handle; // Internal Stream Handle
 	
-    len_t readpos; // Current Reading position
-    len_t writepos; // Current Writing position
     len_t filepos; // Current File Position
 	len_t sfilepos; // Current System File Position (Changed via system calls only)
     
+	ulen_t spos; // Starting position in file - of the internal buffer
 	ulen_t len; // Length of the internal buffer
+	ulen_t cap; // Capacity of inernal buffer
     
 	PStreamFlags flags; // Flags
 	PStreamType type; // Type of stream
@@ -532,7 +538,7 @@ str_to_i64: String to Int 64
 
 Convert a string to an integer of size 8 bytes or 64 bits
 */
-__IFN i64 str_to_i64(const char* str, int base);
+__IFN i64 str_to_i64(const char* str, char** endptr, int base);
 
 /*
 str_to_int: String to Int
@@ -567,7 +573,7 @@ str_to_u64: String to Unsigned Int 64
 
 Convert a string to an unsigned integer of size 8 bytes or 64 bits
 */
-__IFN u64 str_to_u64(const char* str, int base);
+__IFN u64 str_to_u64(const char* str, char** endptr, int base);
 
 /*
 str_to_uint: String to Unsigned Int
@@ -602,7 +608,7 @@ str_to_double: String to double
 
 Convert a string to an double
 */
-__IFN double str_to_double(const char* str);
+__IFN double str_to_double(const char* str, char** endptr);
 
 /*
 str_to_float: String to float
@@ -610,6 +616,12 @@ str_to_float: String to float
 Convert a string to an float
 */
 #define str_to_float(str) (float)str_to_double((str))
+
+/*
+c_is_space: Character is Whitespace
+Returns true if character is a whitespace character else false
+*/
+__IFN bool c_is_space(char c);
 
 /*
 c_is_alpha: Character is Alphabetical
@@ -628,6 +640,24 @@ c_is_alphanum: Character is Alphanumeric
 Returns true if character is Alphanumeric else false
 */
 __IFN bool c_is_alphanum(char c);
+
+/*
+c_to_lower: Character to Lower-Case
+Converts any ASCII character to its lower case representation (if present) and returns it, if it couldn't do it, it returns the same character.
+*/
+__IFN char c_to_lower(char c);
+
+/*
+c_to_upper: Character to Upper-Case
+Converts any ASCII character to its upper case representation (if present) and returns it, if it couldn't do it, it returns the same character.
+*/
+__IFN char c_to_upper(char c);
+
+/*
+is_space: String is Whitespace
+Returns true if string is just whitespace else false
+*/
+__IFN bool is_space(const char* s);
 
 /*
 is_alpha: String is Alphabetical
@@ -652,6 +682,18 @@ is_float: String is float
 Returns true if string is a representation of float else false
 */
 __IFN bool is_float(const char* s);
+
+/*
+to_lower: String to Lower-Case
+Converts any ASCII String to its lower case representation by overwriting its characters and returns true, if it couldn't do it, it returns false
+*/
+__IFN bool to_lower(char* s);
+
+/*
+to_upper: String to Upper-Case
+Converts any ASCII String to its upper case representation by overwriting its characters and returns true, if it couldn't do it, it returns false
+*/
+__IFN bool to_upper(char* s);
 
 /*
 Append Int 64
@@ -712,6 +754,33 @@ Append Unsigned Int 8
 Decimal Concatinates the 2 specified arguments, and returns them.
 */
 #define append_u8(a, b) (u8)append_i64((i64)((u8)(a)), (i64)((u8)(b)))
+
+#define TIME_UNIX_EPOCH 11644473600ULL // UNIX Epoch Time
+
+/*
+Returns the current time in the form of a unix timestamp
+*/
+__IFN timestamp_t time_unix(void);
+
+/*
+Returns the system uptime, in nanoseconds
+*/
+__IFN nstime_t time_ns(void);
+
+/*
+Returns the system uptime, in microseconds
+*/
+__IFN ustime_t time_us(void);
+
+/*
+Returns the system uptime, in milliseconds
+*/
+__IFN mstime_t time_ms(void);
+
+/*
+Returns the system uptime, in seconds
+*/
+__IFN stime_t time_s(void);
 
 /*
 Append Exit Functions -

@@ -283,7 +283,7 @@ static void test_syscall(void) {
     // Recursive syscall pressure
     for (int i = 0; i < 1000; i++) {
         #if defined(__linux__)
-            __plib_syscall(39); // getpid
+            __plib_syscall(39, 0, 0, 0, 0, 0, 0); // getpid
         #endif
     }
 }
@@ -302,6 +302,16 @@ static void test_edge_cases(void) {
     dealloc(bad);
 }
 
+static void test_time(void) {
+	fprint("\n=== TIME TEST ===\n");
+
+	fprint("Unix Timestamp: %llu\n", time_unix());
+	fprint("Uptime (ns): %llu\n", time_ns());
+	fprint("Uptime (us): %llu\n", time_us());
+	fprint("Uptime (ms): %llu\n", time_ms());
+	fprint("Uptime (s): %llu\n", time_s());
+}
+
 int main(int argc, char** argv) {
     fprint("=== PStdLib STRESS TEST START ===\n");
 
@@ -313,6 +323,7 @@ int main(int argc, char** argv) {
     bool buffer_test = false;
     bool syscall_test = false;
     bool edge_test = false;
+	bool time_test = false;
     bool all_tests = argc <= 1;
 
     // Parse test arguments
@@ -327,6 +338,7 @@ int main(int argc, char** argv) {
         else if (strcmp(opt, "buffer") == 0) buffer_test = true;
         else if (strcmp(opt, "syscall") == 0) syscall_test = true;
         else if (strcmp(opt, "edge") == 0) edge_test = true;
+		else if (strcmp(opt, "time") == 0) time_test = true;
         else if (strcmp(opt, "all") == 0) {
             all_tests = true;
             break;
@@ -342,6 +354,7 @@ int main(int argc, char** argv) {
         buffer_test = true;
         syscall_test = true;
         edge_test = true;
+		time_test = true;
     }
 
     if (exit_test) test_exit();
@@ -352,6 +365,7 @@ int main(int argc, char** argv) {
     if (buffer_test) test_buffer();
     if (syscall_test) test_syscall();
     if (edge_test) test_edge_cases();
+	if (time_test) test_time();
 
     fprint("\n=== STRESS TEST COMPLETE ===\n");
     return 0;

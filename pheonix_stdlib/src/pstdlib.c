@@ -6,6 +6,8 @@
 #if defined(__linux__)
     #include <sys/mman.h>
 #elif defined(_WIN32)
+	#include <windows.h>
+	#include <sysinfoapi.h>
     #include <memoryapi.h>
     #include <winnt.h>
 #endif
@@ -23,98 +25,87 @@ static struct PEHdlr* exit_handlers = PNULL;
 
 __IFN llong_t __plib_syscall(int id, ...) {
     llong_t ret = 0;
-    llong_t *args = (llong_t *)(&id + 1);
+    llong_t args[6] = {0};
 
-    #if __PARCH__ == x86_64
-        #if defined(__linux__) || defined(__unix__)
-            llong_t a[6] = {0};
-            for (int i = 0; i < 6; i++)
-                a[i] = args[i];
-            __asm__ volatile (
-                "mov %[num], %%rax\n\t"
-                "mov %[a1], %%rdi\n\t"
-                "mov %[a2], %%rsi\n\t"
-                "mov %[a3], %%rdx\n\t"
-                "mov %[a4], %%r10\n\t"
-                "mov %[a5], %%r8\n\t"
-                "mov %[a6], %%r9\n\t"
-                "syscall\n\t"
-                "mov %%rax, %[ret]"
-                : [ret] "=r"(ret)
-                : [num] "r"((llong_t)id), [a1] "r"(a[0]), [a2] "r"(a[1]),
-                [a3] "r"(a[2]), [a4] "r"(a[3]), [a5] "r"(a[4]), [a6] "r"(a[5])
-                : "rax", "rdi", "rsi", "rdx", "r10", "r8", "r9",
-                "memory"
-            );
-        #endif
-    #elif __PARCH__ == x86
-        #if defined(__linux__) || defined(__unix__)
-            int a[5] = {0};
-            for (int i = 0; i < 5; i++)
-                a[i] = (int)args[i];
-            __asm__ volatile (
-                "mov %[num], %%eax\n\t"
-                "mov %[a1], %%ebx\n\t"
-                "mov %[a2], %%ecx\n\t"
-                "mov %[a3], %%edx\n\t"
-                "mov %[a4], %%esi\n\t"
-                "mov %[a5], %%edi\n\t"
-                "int $0x80\n\t"
-                "mov %%eax, %[ret]"
-                : [ret] "=r"(ret)
-                : [num] "r"(id), [a1] "r"(a[0]), [a2] "r"(a[1]), [a3] "r"(a[2]),
-                [a4] "r"(a[3]), [a5] "r"(a[4])
-                : "eax", "ebx", "ecx", "edx", "esi", "edi", "memory"
-            );
-        #endif
-    #elif __PARCH__ == arm64
-        llong_t a[8] = {0};
-        for (int i = 0; i < 8; i++)
-            a[i] = args[i];
-        __asm__ volatile (
-            "mov x8, %[num]\n\t"
-            "mov x0, %[a1]\n\t"
-            "mov x1, %[a2]\n\t"
-            "mov x2, %[a3]\n\t"
-            "mov x3, %[a4]\n\t"
-            "mov x4, %[a5]\n\t"
-            "mov x5, %[a6]\n\t"
-            "mov x6, %[a7]\n\t"
-            "mov x7, %[a8]\n\t"
-            "svc 0\n\t"
-            "mov %[ret], x0"
-            : [ret] "=r"(ret)
-            : [num] "r"((llong_t)id), [a1] "r"(a[0]), [a2] "r"(a[1]),
-            [a3] "r"(a[2]), [a4] "r"(a[3]), [a5] "r"(a[4]), [a6] "r"(a[5]),
-            [a7] "r"(a[6]), [a8] "r"(a[7])
-            : "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8",
-            "memory"
-        );
+    va_list ap;
+    start_va(ap, id);
+    for (int i = 0; i < 6; i++) args[i] = va_arg(ap, llong_t);
+    end_va(ap);
 
-    #elif __PARCH__ == arm32
-        llong_t a[7] = {0};
-        for (int i = 0; i < 7; i++)
-            a[i] = args[i];
-        __asm__ volatile (
-            "mov r7, %[num]\n\t"
-            "mov r0, %[a1]\n\t"
-            "mov r1, %[a2]\n\t"
-            "mov r2, %[a3]\n\t"
-            "mov r3, %[a4]\n\t"
-            "mov r4, %[a5]\n\t"
-            "mov r5, %[a6]\n\t"
-            "mov r6, %[a7]\n\t"
-            "svc 0\n\t"
-            "mov %[ret], r0"
-            : [ret] "=r"(ret)
-            : [num] "r"((llong_t)id), [a1] "r"(a[0]), [a2] "r"(a[1]), [a3] "r"(a[2]),
-            [a4] "r"(a[3]), [a5] "r"(a[4]), [a6] "r"(a[5]), [a7] "r"(a[6])
-            : "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "memory"
-        );
+	#if __PARCH__ == x86_64
+		#if defined(__linux__) || defined(__unix__)
+			long raw;
 
-    #else
-        ret = -1; // unknown arch
-    #endif
+			register long r10 asm("r10") = (long)args[3];
+			register long r8 asm("r8") = (long)args[4];
+			register long r9 asm("r9") = (long)args[5];
+
+			__asm__ volatile (
+				"syscall"
+				: "=a"(raw)
+				: "0"((long)id), "D"((long)args[0]), "S"((long)args[1]), "d"((long)args[2]), "r"(r10), "r"(r8), "r"(r9)
+				: "rcx", "r11", "memory", "cc"
+			);
+
+			ret = (llong_t)raw;
+		#endif
+	#elif __PARCH__ == x86
+		#if defined(__linux__) || defined(__unix__)
+			int raw;
+
+			register int ebx asm("ebx") = (int)args[0];
+			register int ecx asm("ecx") = (int)args[1];
+			register int edx asm("edx") = (int)args[2];
+			register int esi asm("esi") = (int)args[3];
+			register int edi asm("edi") = (int)args[4];
+			register int ebp asm("ebp") = (int)args[5];
+
+			__asm__ volatile (
+				"int $0x80"
+				: "=a"(raw)
+				: "0"(id), "b"(ebx), "c"(ecx), "d"(edx), "S"(esi), "D"(edi), "r"(ebp)
+				: "memory", "cc"
+			);
+
+			ret = (llong_t)raw;
+		#endif
+	#elif __PARCH__ == arm64
+		register long x0 asm("x0") = (long)args[0];
+		register long x1 asm("x1") = (long)args[1];
+		register long x2 asm("x2") = (long)args[2];
+		register long x3 asm("x3") = (long)args[3];
+		register long x4 asm("x4") = (long)args[4];
+		register long x5 asm("x5") = (long)args[5];
+		register long x8 asm("x8") = (long)id;
+
+		__asm__ volatile (
+			"svc 0"
+			: "+r"(x0)
+			: "r"(x1), "r"(x2), "r"(x3), "r"(x4), "r"(x5), "r"(x8)
+			: "memory", "cc"
+		);
+
+		ret = (llong_t)x0;
+	#elif __PARCH__ == arm32
+		register long r0 asm("r0") = (long)args[0];
+		register long r1 asm("r1") = (long)args[1];
+		register long r2 asm("r2") = (long)args[2];
+		register long r3 asm("r3") = (long)args[3];
+		register long r4 asm("r4") = (long)args[4];
+		register long r5 asm("r5") = (long)args[5];
+		register long r7 asm("r7") = (long)id;
+
+		__asm__ volatile (
+			"svc 0"
+			: "+r"(r0)
+			: "r"(r1), "r"(r2), "r"(r3), "r"(r4), "r"(r5), "r"(r7)
+			: "memory", "cc"
+		);
+
+		ret = (llong_t)r0;
+	#else
+		ret = -1;
+	#endif
 
     return ret;
 }
@@ -572,33 +563,67 @@ __IFN int char_to_digit(char c) {
     return -1;
 }
 
-__IFN u64 str_to_u64(const char* str, int base) {
+__IFN u64 str_to_u64(const char* str, char** endptr, int base) {
+	if (endptr) *endptr = (char*)str;
     if (!str || base < 2 || base > 36) return 0;
 
+	while (*str && c_is_space(*str)) str++;
+	if (!*str) return 0;
+
     u64 result = 0;
+	bool converted = false;
 
     if (*str == '+') str++;
+	if (base == 0) {
+        if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
+            base = 16;
+            str += 2;
+        } else if (str[0] == '0') {
+            base = 8;
+        } else if (str[0] == '0' && (str[1] == 'b' || str[1] == 'B')) {
+			base = 2;
+			str += 2;
+		} else {
+            base = 10;
+        }
+    } else if (base == 16 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
+        str += 2;
+    }
 
     while (*str) {
         int digit = char_to_digit(*str);
-        if (digit < 0 || digit >= base)
-            break;
+        if (digit < 0 || digit >= base) break;
+
+		converted = true;
 
         if (result > (UINT64_MAX - digit) / base) {
+			while (*str) {
+                int d = char_to_digit(*str);
+                if (d < 0 || d >= base) break;
+                str++;
+            }
+
+			if (endptr) *endptr = (char*)str;
             return UINT64_MAX;
         }
 
         result = result * base + digit;
         str++;
-    }
+	}
 
+	if (!converted) return 0; // endptr remains at start
+	if (endptr) *endptr = (char*)str;
     return result;
 }
 
-__IFN s64 str_to_i64(const char* str, int base) {
+__IFN s64 str_to_i64(const char* str, char** endptr, int base) {
+	if (endptr) *endptr = (char*)str;
     if (!str || base < 2 || base > 36) return 0;
 
-    bool neg = false;
+	while (*str && c_is_space(*str)) str++;
+	if (!*str) return 0;
+
+	bool neg = false;
 
     if (*str == '-') {
         neg = true;
@@ -607,14 +632,40 @@ __IFN s64 str_to_i64(const char* str, int base) {
         str++;
     }
 
+	if (base == 0) {
+        if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
+            base = 16;
+            str += 2;
+        } else if (str[0] == '0') {
+            base = 8;
+        } else if (str[0] == '0' && (str[1] == 'b' || str[1] == 'B')) {
+			base = 2;
+			str += 2;
+		} else {
+            base = 10;
+        }
+    } else if (base == 16 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')) {
+        str += 2;
+    }
+
     u64 result = 0;
+	u64 limit = neg ? (u64)INT64_MAX + 1 : (u64)INT64_MAX;
+	bool converted = false;
 
     while (*str) {
         int digit = char_to_digit(*str);
-        if (digit < 0 || digit >= base)
-            break;
+        if (digit < 0 || digit >= base) break;
 
-        if (result > (UINT64_MAX - digit) / base) {
+		converted = true;
+
+        if (result > (limit - digit) / base) {
+			while (*str) {
+                int d = char_to_digit(*str);
+                if (d < 0 || d >= base) break;
+                str++;
+            }
+
+			if (endptr) *endptr = (char*)str;
             return neg ? INT64_MIN : INT64_MAX;
         }
 
@@ -622,20 +673,23 @@ __IFN s64 str_to_i64(const char* str, int base) {
         str++;
     }
 
+	if (!converted) return 0;
+	if (endptr) *endptr = (char*)str;
+
     if (neg) {
-        if (result > (u64)INT64_MAX + 1)
-            return INT64_MIN;
+        if (result == (u64)INT64_MAX + 1) return INT64_MIN;
         return -(s64)result;
     }
-
-    if (result > (u64)INT64_MAX)
-        return INT64_MAX;
 
     return (s64)result;
 }
 
-__IFN double str_to_double(const char* str) {
+__IFN double str_to_double(const char* str, char** endptr) {
+	if (endptr) *endptr = (char*)str;
     if (!str) return 0.0;
+
+	while (*str && c_is_space(*str)) str++;
+	if (!*str) return 0.0;
 
     double result = 0.0;
     double frac = 0.0;
@@ -645,14 +699,19 @@ __IFN double str_to_double(const char* str) {
     if (*str == '-') { sign = -1; str++; }
     else if (*str == '+') { str++; }
 
+	bool converted = false;
     while (c_is_digit(*str)) {
+		converted = true;
         result = result * 10.0 + (*str - '0');
         str++;
     }
 
     if (*str == '.') {
         str++;
+
         while (c_is_digit(*str)) {
+			converted = true;
+
             frac = frac * 10.0 + (*str - '0');
             div *= 10.0;
             str++;
@@ -660,23 +719,56 @@ __IFN double str_to_double(const char* str) {
         result += frac / div;
     }
 
+	if (!converted) return 0.0;
+	if (endptr) *endptr = (char*)str;
     return result * sign;
 }
 
+__IFN bool c_is_space(char c) {
+	return (
+		c == ' '  ||
+        c == '\t' ||
+        c == '\n' ||
+        c == '\r' ||
+        c == '\v' ||
+        c == '\f'
+	);
+}
+
 __IFN bool c_is_alpha(char c) {
-    c |= 0x20;
-    return (c >= 'a' && c <= 'z') ? true : false;
+    return ((c >= 'a' && c <= 'z') && (c >= 'A' && c <= 'Z'));
 }
 
 __IFN bool c_is_digit(char c) {
-    return (c >= '0' && c <= '9') ? true : false;
+    return (c >= '0' && c <= '9');
 }
 
 __IFN bool c_is_alphanum(char c) {
     return c_is_alpha(c) || c_is_digit(c);
 }
 
+__IFN char c_to_lower(char c) {
+	if (!c_is_alpha(c)) return c;
+	return c | 0x20;
+}
+
+__IFN char c_to_upper(char c) {
+	if (!c_is_alpha(c)) return c;
+	return c & (~0x20);
+}
+
+__IFN bool is_space(const char* s) {
+	if (!s || !*s) return false;
+	
+    for (const char* p = s; *p; p++) {
+        if (!c_is_space(*p)) return false;
+    }
+    return true;
+}
+
 __IFN bool is_alpha(const char* s) {
+	if (!s || !*s) return false;
+
     for (const char* p = s; *p; p++) {
         if (!c_is_alpha(*p)) return false;
     }
@@ -684,6 +776,8 @@ __IFN bool is_alpha(const char* s) {
 }
 
 __IFN bool is_digit(const char* s) {
+	if (!s || !*s) return false;
+
     for (const char* p = s; *p; p++) {
         if (!c_is_digit(*p)) return false;
     }
@@ -691,6 +785,8 @@ __IFN bool is_digit(const char* s) {
 }
 
 __IFN bool is_alphanum(const char* s) {
+	if (!s || !*s) return false;
+
     for (const char* p = s; *p; p++) {
         if (!c_is_alphanum(*p)) return false;
     }
@@ -698,7 +794,7 @@ __IFN bool is_alphanum(const char* s) {
 }
 
 __IFN bool is_float(const char* s) {
-    if (!s || !*s) return 0;
+    if (!s || !*s) return false;
 
     bool has_digit = false;
     bool has_dot = false;
@@ -717,6 +813,110 @@ __IFN bool is_float(const char* s) {
     }
 
     return has_digit;
+}
+
+__IFN bool to_lower(char* s){
+	if (!s || !*s) return false;
+
+	for (char* p = s; *p; p++) {
+		char c = *p;
+        *p = c_to_lower(c);
+    }
+	return true;
+}
+
+__IFN bool to_upper(char* s){
+	if (!s || !*s) return false;
+
+	for (char* p = s; *p; p++) {
+		char c = *p;
+        *p = c_to_upper(c);
+    }
+	return true;
+}
+
+__IFN timestamp_t time_unix(void) {
+	#if defined(_WIN32)
+		SYSTEMTIME t;
+		FILETIME ft;
+
+		GetSystemTime(&t);
+		SystemTimeToFileTime(&t, &ft);
+
+		ULARGE_INTEGER ticks;
+    	ticks.LowPart = ft.dwLowDateTime;
+    	ticks.HighPart = ft.dwHighDateTime;
+
+		return (timestamp_t)((ticks.QuadPart / 10000000ULL) - TIME_UNIX_EPOCH);
+	#elif defined(__linux__)
+		struct timespec {
+         	long int tv_sec;// seconds
+            long tv_nsec; // nanoseconds
+        };
+
+		struct timespec ts = {0};
+		#if __PARCH__ == x86_64
+            if (__plib_syscall(228, 0LL, (llong_t)(uptr_t)&ts, 0, 0, 0, 0) < 0) return 0;
+        #elif __PARCH__ == x86
+            if (__plib_syscall(265, 0LL, (llong_t)(uptr_t)&ts, 0, 0, 0, 0) < 0) return 0;
+        #elif __PARCH__ == arm32
+            if (__plib_syscall(263, 0LL, (llong_t)(uptr_t)&ts, 0, 0, 0, 0) < 0) return 0;
+        #elif __PARCH__ == arm64
+            if (__plib_syscall(113, 0LL, (llong_t)(uptr_t)&ts, 0, 0, 0, 0) < 0) return 0;
+        #endif
+
+		return (timestamp_t)ts.tv_sec;
+	#else
+		#error Unsupported platform
+	#endif
+}
+
+__IFN nstime_t time_ns(void) {
+	#if defined(_WIN32)
+		LARGE_INTEGER t;
+		LARGE_INTEGER f;
+		if (!QueryPerformanceCounter(&t)) return 0;
+		if (!QueryPerformanceFrequency(&f)) return 0;
+
+		uint64_t ticks = (uint64_t)t.QuadPart;
+    	uint64_t freq = (uint64_t)f.QuadPart;
+		uint64_t seconds = ticks / freq;
+    	uint64_t remainder = ticks % freq;
+
+		return (nstime_t)((seconds * 1000000000ULL) + ((remainder * 1000000000ULL) / freq));
+	#elif defined(__linux__)
+		struct timespec {
+         	long int tv_sec;// seconds
+            long tv_nsec; // nanoseconds
+        };
+
+		struct timespec ts = {0};
+		#if __PARCH__ == x86_64
+            if (__plib_syscall(228, 1LL, (llong_t)(uptr_t)&ts, 0, 0, 0, 0) < 0) return 0;
+        #elif __PARCH__ == x86
+            if (__plib_syscall(265, 1LL, (llong_t)(uptr_t)&ts, 0, 0, 0, 0) < 0) return 0;
+        #elif __PARCH__ == arm32
+            if (__plib_syscall(263, 1LL, (llong_t)(uptr_t)&ts, 0, 0, 0, 0) < 0) return 0;
+        #elif __PARCH__ == arm64
+            if (__plib_syscall(113, 1LL, (llong_t)(uptr_t)&ts, 0, 0, 0, 0) < 0) return 0;
+        #endif
+
+		return (nstime_t)((ts.tv_sec * 1000000000LL) + ts.tv_nsec);
+	#else
+		#error Unsupported platform
+	#endif
+}
+
+__IFN ustime_t time_us(void) {
+	return (ustime_t)(time_ns() / 1000);
+}
+
+__IFN mstime_t time_ms(void) {
+	return (mstime_t)(time_ns() / 1000000);
+}
+
+__IFN stime_t time_s(void) {
+	return (stime_t)(time_ns() / 1000000000);
 }
 
 __IFN i64 append_i64(i64 a, i64 b) {
@@ -767,13 +967,13 @@ __IFN __attribute__((noreturn)) void exit(int status) {
     #if defined(__linux__)
         // Calls exit_group
         #if __PARCH__ == x86_64
-            __plib_syscall(231, (llong_t)status);
+            __plib_syscall(231, (llong_t)status, 0, 0, 0, 0, 0);
         #elif __PARCH__ == x86
-            __plib_syscall(252, (llong_t)status);
+            __plib_syscall(252, (llong_t)status, 0, 0, 0, 0, 0);
         #elif __PARCH__ == arm32
-            __plib_syscall(248, (llong_t)status);
+            __plib_syscall(248, (llong_t)status, 0, 0, 0, 0, 0);
         #elif __PARCH__ == arm64
-            __plib_syscall(94, (llong_t)status);
+            __plib_syscall(94, (llong_t)status, 0, 0, 0, 0, 0);
         #endif
     #elif defined(_WIN32)
         ExitProcess((unsigned int)status);
@@ -786,13 +986,13 @@ __IFN __attribute__((noreturn)) void abort(void) {
     #if defined(__linux__)
         // Calls exit_group with status 134 (128 + SIGABRT)
         #if __PARCH__ == x86_64
-            __plib_syscall(231, 134);
+            __plib_syscall(231, 134, 0, 0, 0, 0, 0);
         #elif __PARCH__ == x86
-            __plib_syscall(252, 134);
+            __plib_syscall(252, 134, 0, 0, 0, 0, 0);
         #elif __PARCH__ == arm32
-            __plib_syscall(248, 134);
+            __plib_syscall(248, 134, 0, 0, 0, 0, 0);
         #elif __PARCH__ == arm64
-            __plib_syscall(94, 134);
+            __plib_syscall(94, 134, 0, 0, 0, 0, 0);
         #endif
     #elif defined(_WIN32)
         TerminateProcess(GetCurrentProcess(), 6);

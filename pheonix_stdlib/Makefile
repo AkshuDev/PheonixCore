@@ -11,19 +11,14 @@ OS := $(shell uname -s | tr A-Z a-z)
 ARCH := $(shell uname -m)
 
 # Default build type
-BUILD ?= debug
+EXTRA ?= -ffast-math -DNDEBUG
+OPT_LEVEL ?= 3
 
 # Compiler
 CC := gcc
 
-CFLAGS_BASE := -nostdlib -fno-stack-protector -ffreestanding -I$(INC_DIR) -fPIC -Wall -Wextra
+CFLAGS := -nostdlib -fno-stack-protector -ffreestanding -I$(INC_DIR) -fPIC -Wall -Wextra -O$(OPT_LEVEL) $(EXTRA)
 LDFLAGS := -shared -fPIC
-
-ifeq ($(BUILD),release)
-	CFLAGS := $(CFLAGS_BASE) -O3 -ffast-math -DNDEBUG
-else
-	CFLAGS := $(CFLAGS_BASE) -g -O0 -DDEBUG
-endif
 
 # Architecture Optimised Directory
 ARCH_DIR := $(SRC_DIR)/arch/$(ARCH)

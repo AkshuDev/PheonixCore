@@ -39,9 +39,9 @@ Pheonix I/O File Metadata - Stores metadata of a file
 typedef struct {
 	bool valid; // Is the structure valid and filled
 
-	u64 creation_time; // The time of creation of the file (UNIX Timestamp)
-	u64 modified_time; // The time of modification of the file (UNIX Timestamp)
-	u64 last_access_time; // The time of the last access of the fiel (UNIX Timestamp)
+	timestamp_t creation_time; // The time of creation of the file
+	timestamp_t modified_time; // The time of modification of the file
+	timestamp_t last_access_time; // The time of the last access of the file
 
 	ulen_t file_size; // The size of the file in bytes
 } PIO_FileMD;
@@ -143,6 +143,24 @@ Special Cases:
 1. If stream is a directory stream, then `buffer` should point to `PIO_DirectoryEntry` Structure and `size` should strictly be the size of `PIO_DirectoryEntry` structure.
 */
 __IFN usize_t sread(PIO_Stream* pio, void* buffer, usize_t size);
+
+/*
+sgetc - Stream Get Character
+Reads 1 byte from the PIO_Stream and returns it, '\0' on EOF or failure (could also be a valid byte in the stream, so check last error)
+
+Supported Stream Types:
+1. File
+2. String
+*/
+__IFN char sgetc(PIO_Stream* pio);
+
+/*
+sungetc - Stream Un-Get Character
+Moves the file cursor 1 byte back in the PIO_Stream
+
+Supports all stream types
+*/
+__IFN void sungetc(PIO_Stream* pio);
 
 /*
 swrite - Stream Write
